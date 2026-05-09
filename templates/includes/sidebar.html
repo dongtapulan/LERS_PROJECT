@@ -16,8 +16,15 @@
                class="nav-item {{ 'active' if request.endpoint == 'admin_pending_reservations' }}">
                Pending Reservations
             </a>
-            <a href="#" class="nav-item">User Management</a>
-            <a href="#" class="nav-item">System Reports</a>
+            
+            <a href="{{ url_for('user_management') }}" 
+                class="nav-item {{ 'active' if request.endpoint == 'user_management' }}">
+                User Management
+            </a>
+            <a href="{{ url_for('admin_reports') }}" 
+                class="nav-item {{ 'active' if request.endpoint == 'admin_reports' }}">
+                System Reports
+            </a>
         {% else %}
             <a href="{{ url_for('user_dashboard') }}" 
                class="nav-item {{ 'active' if request.endpoint == 'user_dashboard' }}">

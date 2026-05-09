@@ -8,39 +8,58 @@
     .form-container {
         background: white;
         padding: 25px;
-        border-radius: 10px;
+        border-radius: 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         max-width: 600px;
         margin-bottom: 30px;
+        border: 1px solid #e2e8f0;
     }
     .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: var(--lab-navy); }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #2d3748; font-size: 0.9rem; }
     .form-group input, .form-group textarea, .form-group select {
         width: 100%;
         padding: 10px;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
         font-family: inherit;
+        font-size: 0.9rem;
     }
     .btn-add {
-        background: var(--lab-blue);
+        background: #4299e1;
         color: white;
         border: none;
         padding: 12px 20px;
         border-radius: 6px;
         cursor: pointer;
         font-weight: 600;
-        transition: opacity 0.2s;
+        transition: background 0.2s;
+        width: 100%;
     }
-    .btn-add:hover { opacity: 0.9; }
+    .btn-add:hover { background: #3182ce; }
 
-    .inventory-section { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-    .status-available { background: #c6f6d5; color: #22543d; }
-    .status-borrowed { background: #bee3f8; color: #2a4365; }
-    .status-maintenance { background: #feebc8; color: #744210; }
-    .btn-action { text-decoration: none; font-size: 0.8rem; margin-left: 10px; color: #4a5568; }
-    .btn-action:hover { color: var(--lab-blue); }
+    .inventory-section { 
+        background: white; 
+        padding: 25px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        border: 1px solid #e2e8f0;
+    }
+    .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+    .status-available { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .status-borrowed { background: #bee3f8; color: #2a4365; border: 1px solid #90cdf4; }
+    .status-maintenance { background: #feebc8; color: #744210; border: 1px solid #fbd38d; }
+    
+    .action-links { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn-action { 
+        text-decoration: none; 
+        font-size: 0.8rem; 
+        font-weight: 600;
+        color: #4a5568; 
+        transition: color 0.2s;
+    }
+    .btn-action:hover { color: #4299e1; }
+    .btn-delete { color: #e53e3e; }
+    .btn-delete:hover { color: #c53030; }
 </style>
 {% endblock %}
 
@@ -50,16 +69,18 @@
     
     <main class="main-content">
         <header class="content-header">
-            <h1>Equipment Management</h1>
-            <p>Add new items or manage current laboratory inventory.</p>
+            <div class="header-title">
+                <h1>Equipment Management</h1>
+                <p>Register new hardware or update the laboratory inventory.</p>
+            </div>
         </header>
 
         <section class="form-container">
-            <h2 style="margin-bottom: 20px;">Add New Equipment</h2>
+            <h2 style="margin-bottom: 20px; font-size: 1.25rem; color: #2d3748;">Add New Equipment</h2>
             <form action="{{ url_for('add_equipment') }}" method="POST" enctype="multipart/form-data">
                 <div class="form-group">
                     <label>Equipment Name</label>
-                    <input type="text" name="name" placeholder="e.g. Oscilloscope" required>
+                    <input type="text" name="name" placeholder="e.g. Raspberry Pi 4" required>
                 </div>
 
                 <div class="form-group">
@@ -74,7 +95,7 @@
 
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" rows="3" placeholder="Provide a brief description of the item..."></textarea>
+                    <textarea name="description" rows="2" placeholder="Brief details about use and condition..."></textarea>
                 </div>
 
                 <div class="form-group">
@@ -88,7 +109,7 @@
                 <div class="form-group">
                     <label>Equipment Image</label>
                     <input type="file" name="image" accept="image/*" required>
-                    <small style="color: #718096;">Accepted formats: PNG, JPG, JPEG</small>
+                    <p style="color: #718096; font-size: 0.75rem; margin-top: 5px;">Accepted formats: PNG, JPG, JPEG</p>
                 </div>
 
                 <button type="submit" class="btn-add">Upload to Inventory</button>
@@ -96,48 +117,57 @@
         </section>
 
         <section class="inventory-section">
-            <h3 style="margin-bottom: 20px;">Current Inventory</h3>
+            <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: #2d3748;">Current Inventory</h3>
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
-                    <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-size: 0.9rem;">
-                        <th style="padding: 12px;">Image</th>
-                        <th style="padding: 12px;">Item Name</th>
+                    <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <th style="padding: 12px;">Preview</th>
+                        <th style="padding: 12px;">Item Details</th>
                         <th style="padding: 12px;">Category</th>
                         <th style="padding: 12px;">Status</th>
-                        <th style="padding: 12px; text-align: right;">Actions</th>
+                        <th style="padding: 12px; text-align: right;">Management</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if equipment %}
                         {% for item in equipment %}
                         <tr style="border-bottom: 1px solid #edf2f7;">
-                            <td style="padding: 10px;">
+                            <td style="padding: 15px 12px;">
                                 <img src="{{ url_for('static', filename='uploads/equipment/' + item.image_url) }}" 
-                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"
+                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;"
                                      alt="{{ item.name }}">
                             </td>
-                            <td style="padding: 10px;"><strong>{{ item.name }}</strong></td>
-                            <td style="padding: 10px; font-size: 0.85rem;">{{ item.category }}</td>
-                            <td style="padding: 10px;">
+                            <td style="padding: 15px 12px;">
+                                <div style="font-weight: 700; color: #2d3748;">{{ item.name }}</div>
+                                <div style="font-size: 0.75rem; color: #a0aec0;">ID: #EQ-{{ item.equip_id }}</div>
+                            </td>
+                            <td style="padding: 15px 12px; font-size: 0.85rem; color: #4a5568;">{{ item.category }}</td>
+                            <td style="padding: 15px 12px;">
                                 <span class="status-badge 
                                     {% if item.status == 'available' %}status-available
                                     {% elif item.status == 'borrowed' %}status-borrowed
                                     {% else %}status-maintenance{% endif %}">
-                                    {{ item.status | replace('_', ' ') | title }}
+                                    {{ item.status | replace('_', ' ') }}
                                 </span>
                             </td>
-                            <td style="padding: 10px; text-align: right;">
-                                <a href="#" class="btn-action">Edit</a>
-                                <a href="{{ url_for('toggle_maintenance', equip_id=item.equip_id) }}" class="btn-action">
-                                    {{ 'Fix' if item.status == 'maintenance' else 'Maintain' }}
-                                </a>
+                            <td style="padding: 15px 12px;">
+                                <div class="action-links">
+                                    <a href="{{ url_for('toggle_maintenance', equip_id=item.equip_id) }}" class="btn-action">
+                                        {{ 'Restore' if item.status == 'maintenance' else 'Maintain' }}
+                                    </a>
+                                    <a href="{{ url_for('delete_equipment', equip_id=item.equip_id) }}" 
+                                       class="btn-action btn-delete" 
+                                       onclick="return confirm('Are you sure you want to delete this item? This cannot be undone.')">
+                                        Delete
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="5" style="padding: 30px; text-align: center; color: #a0aec0;">
-                                No equipment found in inventory.
+                            <td colspan="5" style="padding: 50px; text-align: center; color: #a0aec0;">
+                                <p>Inventory is currently empty.</p>
                             </td>
                         </tr>
                     {% endif %}

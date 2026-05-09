@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}User Management | LERS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include 'includes/sidebar.html' %}
+    
+    <main class="main-content">
+        <header class="content-header">
+            <h1>User Management</h1>
+            <p>View and manage registered students and faculty members.</p>
+        </header>
+
+        <section style="margin-top: 2rem;">
+            <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                        <tr>
+                            <th style="padding: 1rem 1.5rem;">User</th>
+                            <th style="padding: 1rem 1.5rem;">Username/ID</th>
+                            <th style="padding: 1rem 1.5rem;">Department</th>
+                            <th style="padding: 1rem 1.5rem;">Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr style="border-bottom: 1px solid #edf2f7;">
+                            <td style="padding: 1rem 1.5rem;">
+                                <div style="font-weight: 600;">{{ u.first_name }} {{ u.last_name }}</div>
+                            </td>
+                            <td style="padding: 1rem 1.5rem; color: #718096;">{{ u.username }}</td>
+                            <td style="padding: 1rem 1.5rem; color: #718096;">{{ u.department }}</td>
+                            <td style="padding: 1rem 1.5rem;">
+                                <span style="padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; 
+                                    background: {{ '#ebf8ff' if u.role == 'admin' else '#f7fafc' }}; 
+                                    color: {{ '#2c5282' if u.role == 'admin' else '#4a5568' }};">
+                                    {{ u.role|upper }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}System Reports & OS Integration | LERS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include 'includes/sidebar.html' %}
+    
+    <main class="main-content">
+        <header class="content-header">
+            <h1>System Reports</h1>
+            <p>Administrative overview and OS architectural documentation.</p>
+        </header>
+
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 2rem;">
+            <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #4299e1; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <h4 style="color: #718096; margin: 0; font-size: 0.8rem; text-transform: uppercase;">Total Users</h4>
+                <p style="font-size: 1.8rem; font-weight: 700; margin: 10px 0 0;">{{ stats.total_users }}</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #48bb78; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <h4 style="color: #718096; margin: 0; font-size: 0.8rem; text-transform: uppercase;">Active Loans</h4>
+                <p style="font-size: 1.8rem; font-weight: 700; margin: 10px 0 0;">{{ stats.active_loans }}</p>
+            </div>
+        </div>
+
+        <section style="margin-top: 3rem; background: #f8fafc; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <h2 style="color: #2d3748; border-bottom: 2px solid #cbd5e0; padding-bottom: 10px;">
+                How the Operating System Supports LERS
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
+                <div>
+                    <h3 style="color: #4a5568; font-size: 1.1rem;">1. Involved OS Functions</h3>
+                    <ul style="color: #4a5568; line-height: 1.6;">
+                        <li><strong>File Management:</strong> The OS handles the storage and retrieval of equipment images and PDF reservation slips in the local file system.</li>
+                        <li><strong>Process Management:</strong> The OS allocates CPU time and memory to the Python interpreter and PostgreSQL server to handle simultaneous requests.</li>
+                        <li><strong>Network Management:</strong> The OS TCP/IP stack enables communication between the Flask server and client browsers.</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 style="color: #4a5568; font-size: 1.1rem;">2. Potential OS Problems</h3>
+                    <ul style="color: #4a5568; line-height: 1.6;">
+                        <li><strong>Concurrency Issues:</strong> Race conditions when two users try to reserve the last available item at the same millisecond.</li>
+                        <li><strong>Memory Leaks:</strong> Improper process handling that could eventually exhaust server RAM.</li>
+                        <li><strong>Storage Overload:</strong> Unmanaged generation of PDF slips filling up disk space.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; background: white; padding: 20px; border-radius: 8px;">
+                <h3 style="color: #4a5568; font-size: 1.1rem;">3. Implementation & Handling</h3>
+                <p style="color: #4a5568; line-height: 1.6;">
+                    To handle these, LERS utilizes <strong>Database Locking</strong> provided by the OS-backed PostgreSQL engine to prevent race conditions. We implement <strong>Secure Filename Handling</strong> via the Werkzeug library to prevent OS-level directory traversal attacks, and utilize the OS's <strong>Multithreading</strong> capabilities to handle multiple user sessions without blocking the main system process.
+                </p>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}
