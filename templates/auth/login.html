@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Login | LERS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <h1>LERS</h1>
+            <p>Lab Equipment Reservation System</p>
+        </div>
+        
+        <form action="{{ url_for('login') }}" method="POST">
+            <div class="form-group">
+                <label>Username / ID Number</label>
+                <input type="text" name="username" placeholder="Enter your ID" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" class="btn-login">Sign In</button>
+        </form>
+        
+        <div class="login-footer">
+            <p>New user? <a href="{{ url_for('register') }}" style="color: var(--lab-blue);">Create an account</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

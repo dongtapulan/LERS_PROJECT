@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}My Reservations | LERS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    .res-row:hover {
+        background-color: #f8fafc !important;
+        transition: background-color 0.2s ease;
+    }
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+    .btn-download {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background-color: #4299e1;
+        color: white;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: 0.2s;
+    }
+    .btn-download:hover {
+        background-color: #3182ce;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include 'includes/sidebar.html' %}
+    
+    <main class="main-content">
+        <header class="content-header">
+            <div class="header-title">
+                <h1>My Reservations</h1>
+                <p>Track your active laboratory equipment requests.</p>
+            </div>
+        </header>
+
+        <section class="reservation-table-section" style="margin-top: 2rem;">
+            <div style="background: white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e2e8f0;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                        <tr>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Equipment</th>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Borrow Date</th>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Status</th>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem; text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if reservations %}
+                            {% for res in reservations %}
+                            <tr class="res-row" style="border-bottom: 1px solid #edf2f7;">
+                                <td style="padding: 1.25rem 1.5rem;">
+                                    <div style="font-weight: 600; color: #2d3748;">{{ res.equip_name }}</div>
+                                    <div style="font-size: 0.75rem; color: #a0aec0;">{{ res.category }}</div>
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem; color: #718096; font-size: 0.9rem;">
+                                    {{ res.borrow_date }}
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem;">
+                                    {% if res.status == 'pending' %}
+                                        <span class="status-badge" style="background: #fffaf0; color: #9c4221; border: 1px solid #fbd38d;">Pending</span>
+                                    {% elif res.status == 'approved' %}
+                                        <span class="status-badge" style="background: #f0fff4; color: #22543d; border: 1px solid #9ae6b4;">Approved</span>
+                                    {% elif res.status == 'rejected' %}
+                                        <span class="status-badge" style="background: #fff5f5; color: #822727; border: 1px solid #feb2b2;">Rejected</span>
+                                    {% else %}
+                                        <span class="status-badge" style="background: #ebf8ff; color: #2c5282; border: 1px solid #bee3f8;">{{ res.status|capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                                    {% if res.status == 'approved' %}
+                                        <a href="{{ url_for('download_slip', res_id=res.res_id) }}" class="btn-download">
+                                            Download Slip
+                                        </a>
+                                    {% else %}
+                                        <span style="color: #cbd5e0; font-size: 0.75rem;">No actions available</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" style="padding: 5rem 1.5rem; text-align: center;">
+                                    <div style="color: #a0aec0; font-size: 1.1rem;">
+                                        <p>You have no active reservations.</p>
+                                        <a href="{{ url_for('user_dashboard') }}" style="color: #4299e1; text-decoration: none; font-weight: 600;">&larr; Browse Equipment</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}

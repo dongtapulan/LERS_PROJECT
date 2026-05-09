@@ -1,0 +1,46 @@
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h3>LERS {{ session['role']|capitalize }}</h3>
+    </div>
+    <nav>
+        {% if session['role'] == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}" 
+               class="nav-item {{ 'active' if request.endpoint == 'admin_dashboard' }}">
+               Admin Home
+            </a>
+            <a href="{{ url_for('manage_equipment') }}" 
+               class="nav-item {{ 'active' if request.endpoint == 'manage_equipment' }}">
+               Manage Equipment
+            </a>
+            <a href="{{ url_for('admin_pending_reservations') }}" 
+               class="nav-item {{ 'active' if request.endpoint == 'admin_pending_reservations' }}">
+               Pending Reservations
+            </a>
+            <a href="#" class="nav-item">User Management</a>
+            <a href="#" class="nav-item">System Reports</a>
+        {% else %}
+            <a href="{{ url_for('user_dashboard') }}" 
+               class="nav-item {{ 'active' if request.endpoint == 'user_dashboard' }}">
+               Available Equipment
+            </a>
+            <a href="{{ url_for('my_reservations') }}" 
+               class="nav-item {{ 'active' if request.endpoint == 'my_reservations' }}">
+               My Reservations
+            </a>
+            <a href="{{ url_for('borrowing_history') }}" 
+               class="nav-item {{ 'active' if request.endpoint == 'borrowing_history' }}">
+               Borrowing History
+            </a>
+        {% endif %}
+        
+        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
+        
+        <div style="padding: 0 20px; margin-bottom: 10px;">
+            <p style="font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                Account
+            </p>
+        </div>
+        
+        <a href="{{ url_for('logout') }}" class="nav-item logout">Logout</a>
+    </nav>
+</div>

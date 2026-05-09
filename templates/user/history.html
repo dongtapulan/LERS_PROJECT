@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Booking History | LERS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    {% include 'includes/sidebar.html' %}
+    
+    <main class="main-content">
+        <header class="content-header">
+            <h1>Booking History</h1>
+            <p>A record of all your past equipment usage and requests.</p>
+        </header>
+
+        <section style="margin-top: 2rem;">
+            <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left;">
+                        <tr>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Equipment</th>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Date Used</th>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Purpose</th>
+                            <th style="padding: 1rem 1.5rem; color: #4a5568; font-size: 0.85rem;">Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if history %}
+                            {% for item in history %}
+                            <tr style="border-bottom: 1px solid #edf2f7;">
+                                <td style="padding: 1rem 1.5rem; font-weight: 600;">{{ item.equip_name }}</td>
+                                <td style="padding: 1rem 1.5rem; color: #718096;">{{ item.borrow_date }}</td>
+                                <td style="padding: 1rem 1.5rem; color: #718096; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {{ item.purpose }}
+                                </td>
+                                <td style="padding: 1rem 1.5rem;">
+                                    {% if item.status == 'returned' %}
+                                        <span style="color: #2f855a; font-weight: 600;">✓ Returned</span>
+                                    {% elif item.status == 'rejected' %}
+                                        <span style="color: #c53030; font-weight: 600;">✕ Rejected</span>
+                                    {% else %}
+                                        <span style="color: #4a5568;">{{ item.status|capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" style="padding: 4rem; text-align: center; color: #a0aec0;">
+                                    No history records found.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}
