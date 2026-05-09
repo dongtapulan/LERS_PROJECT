@@ -153,6 +153,31 @@ def update_reservation(res_id, action):
 
     flash(f"Reservation {new_status} successfully!")
     return redirect(url_for('admin_pending_reservations'))
+# --- ADMIN REPORT & OS INTEGRATION ---
+@app.route('/admin/reports')
+def admin_reports():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    
+    # Fetching fresh stats for the report
+    stats = query_db("""
+        SELECT 
+            (SELECT COUNT(*) FROM equipment) as total_equip,
+            (SELECT COUNT(*) FROM users WHERE role != 'admin') as total_users,
+            (SELECT COUNT(*) FROM reservations WHERE status = 'approved') as active_loans,
+            (SELECT COUNT(*) FROM reservations WHERE status = 'rejected') as rejected_total
+    """, one=True)
+    
+    return render_template('admin/reports.html', stats=stats)
+
+# --- USER MANAGEMENT ---
+@app.route('/admin/users')
+def user_management():
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    
+    users_list = query_db("SELECT user_id, username, first_name, last_name, role, department FROM users ORDER BY role DESC")
+    return render_template('admin/user_management.html', users=users_list)
 
 # --- USER ROUTES ---
 
@@ -209,6 +234,23 @@ def download_slip(res_id):
         
     pdf_path = SlipGenerator.generate_reservation_slip(res_data)
     return send_file(pdf_path, as_attachment=True)
+
+@app.route('/admin/delete-equipment/<int:equip_id>')
+def delete_equipment(equip_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    
+    # Optional: Delete the image file from the folder as well
+    item = query_db("SELECT image_url FROM equipment WHERE equip_id = %s", (equip_id,), one=True)
+    if item and item['image_url']:
+        try:
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], item['image_url']))
+        except:
+            pass # File might already be gone
+
+    query_db("DELETE FROM equipment WHERE equip_id = %s", (equip_id,))
+    flash("Equipment successfully removed from inventory.")
+    return redirect(url_for('manage_equipment'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
