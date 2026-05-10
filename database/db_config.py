@@ -1,18 +1,23 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
+from dotenv import load_dotenv
 
-# Database Credentials
+# Load variables from the .env file into the system environment
+load_dotenv()
+
+# Database Credentials pulled from the OS environment for security
 DB_SETTINGS = {
-    'dbname': 'lers_db',
-    'user': 'postgres',
-    'password': '102405', 
-    'host': 'localhost',
-    'port': '5432'
+    'dbname': os.getenv('DB_NAME', 'lers_db'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASS'), # No default for password for security
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': os.getenv('DB_PORT', '5432')
 }
 
 def get_connection():
     try:
+        # Pass the dictionary as keyword arguments
         conn = psycopg2.connect(**DB_SETTINGS)
         return conn
     except Exception as e:
@@ -37,7 +42,7 @@ def query_db(query, args=(), one=False):
         if cur.description:
             result = cur.fetchall()
         
-        # ALWAYS commit after every execute, regardless of SELECT or INSERT
+        # Commit after execution to ensure data persistence
         conn.commit()
         
         if result is not None:
