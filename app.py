@@ -117,16 +117,17 @@ def add_equipment():
     flash("Equipment added to inventory.")
     return redirect(url_for('manage_equipment'))
 
-@app.route('/admin/toggle-maintenance/<int:equip_id>')
+@app.route('/admin/toggle-maintenance/<int:equip_id>', methods=['GET', 'POST']) # Add methods here
 def toggle_maintenance(equip_id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
 
     item = query_db("SELECT status FROM equipment WHERE equip_id = %s", (equip_id,), one=True)
     if item:
-        new_status = 'available' if item['status'] == 'maintenance' else 'maintenance'
+        # Toggle between available and out_of_order
+        new_status = 'available' if item['status'] == 'out_of_order' else 'out_of_order'
         query_db("UPDATE equipment SET status = %s WHERE equip_id = %s", (new_status, equip_id))
-        flash(f"Equipment status updated to {new_status}.")
+        flash(f"Equipment status updated to {new_status.replace('_', ' ')}.")
     
     return redirect(url_for('manage_equipment'))
 
@@ -185,8 +186,18 @@ def user_management():
 def user_dashboard():
     if session.get('role') not in ['student', 'teacher']: 
         return redirect(url_for('index'))
-    equipment_list = query_db("SELECT * FROM equipment WHERE status = 'available'")
-    return render_template('user/dashboard.html', equipment=equipment_list)
+    
+    # Updated query to calculate "effective_qty" by subtracting pending reservations
+    equipment_list = query_db("""
+        SELECT e.*, 
+        (e.available_quantity - (
+            SELECT COUNT(*) FROM reservations r 
+            WHERE r.equip_id = e.equip_id AND r.status = 'pending'
+        )) as effective_qty
+        FROM equipment e
+    """)
+    
+    return render_template('user/dashboard.html', equipment=equipment_list, name=session.get('full_name'))
 
 @app.route('/user/my-reservations')
 def my_reservations():
@@ -250,6 +261,51 @@ def delete_equipment(equip_id):
 
     query_db("DELETE FROM equipment WHERE equip_id = %s", (equip_id,))
     flash("Equipment successfully removed from inventory.")
+    return redirect(url_for('manage_equipment'))
+
+@app.route('/admin/reservation/<int:res_id>/approve', methods=['POST'])
+def approve_reservation(res_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+
+    approver_name = request.form.get('approver_name') # Input from admin
+    
+    # Update Reservation
+    query_db("""
+        UPDATE reservations 
+        SET status = 'approved', approved_by_name = %s 
+        WHERE res_id = %s
+    """, (approver_name, res_id))
+
+    # Decrease Quantity & Update Status if empty
+    res = query_db("SELECT equip_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
+    query_db("""
+        UPDATE equipment 
+        SET available_quantity = available_quantity - 1,
+            status = CASE WHEN available_quantity - 1 <= 0 THEN 'borrowed'::equipment_status ELSE 'available'::equipment_status END
+        WHERE equip_id = %s
+    """, (res['equip_id'],))
+
+    flash(f"Approved by {approver_name}. Inventory updated.")
+    return redirect(url_for('admin_dashboard'))
+@app.route('/admin/edit-equipment/<int:equip_id>', methods=['POST'])
+def edit_equipment(equip_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+
+    name = request.form.get('name')
+    total_qty = int(request.form.get('total_quantity'))
+    status = request.form.get('status') # 'available', 'out_of_order'
+    
+    # Logic: Available quantity cannot exceed total quantity
+    query_db("""
+        UPDATE equipment 
+        SET name = %s, total_quantity = %s, status = %s,
+            available_quantity = CASE WHEN %s < available_quantity THEN %s ELSE available_quantity END
+        WHERE equip_id = %s
+    """, (name, total_qty, status, total_qty, total_qty, equip_id))
+
+    flash("Inventory updated successfully.")
     return redirect(url_for('manage_equipment'))
 
 if __name__ == '__main__':
