@@ -19,6 +19,7 @@ class ReservationService:
             return False, "Return time cannot be earlier than the borrow time."
 
         # 3. Check User's Active Reservation Limit (Max 2)
+        # Note: 'cancelled' and 'rejected' do NOT count toward this limit
         active_count = query_db("""
             SELECT COUNT(*) as count FROM reservations 
             WHERE user_id = %s AND status IN ('pending', 'approved')
@@ -54,6 +55,7 @@ class ReservationService:
 
     @staticmethod
     def get_user_reservations(user_id):
+        """Fetches active and recently updated reservations for the student dashboard"""
         return query_db("""
             SELECT 
                 r.res_id, r.borrow_date, r.return_date, r.purpose, r.status, r.created_at,
@@ -66,7 +68,24 @@ class ReservationService:
         """, (user_id,))
 
     @staticmethod
+    def get_all_for_admin():
+        """Returns ALL reservations (including cancelled) so professors have an audit trail"""
+        return query_db("""
+            SELECT 
+                r.res_id, r.user_id, r.borrow_date, r.return_date, r.purpose, r.created_at, r.status,
+                u.first_name || ' ' || u.last_name AS full_name, 
+                u.username AS student_id,
+                e.name AS equip_name,
+                e.category
+            FROM reservations r
+            JOIN users u ON r.user_id = u.user_id
+            JOIN equipment e ON r.equip_id = e.equip_id
+            ORDER BY r.created_at DESC
+        """)
+
+    @staticmethod
     def get_all_pending():
+        """Used for the Admin's 'To-Do' list"""
         return query_db("""
             SELECT 
                 r.res_id, r.user_id, r.borrow_date, r.return_date, r.purpose, r.created_at,
@@ -83,6 +102,7 @@ class ReservationService:
 
     @staticmethod
     def get_borrowing_history(user_id):
+        """Shows the student their past finalized activity"""
         return query_db("""
             SELECT 
                 r.res_id, r.borrow_date, r.return_date, r.purpose, r.status, r.created_at,
@@ -90,7 +110,7 @@ class ReservationService:
                 e.name AS equip_name
             FROM reservations r 
             LEFT JOIN equipment e ON r.equip_id = e.equip_id 
-            WHERE r.user_id = %s AND r.status != 'pending'
+            WHERE r.user_id = %s AND r.status NOT IN ('pending')
             ORDER BY r.created_at DESC
         """, (user_id,))
 

@@ -16,21 +16,36 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.025em;
+        display: inline-block;
+        border: 1px solid transparent;
     }
-    .btn-download {
+    .btn-action {
         display: inline-flex;
         align-items: center;
         padding: 6px 12px;
-        background-color: #4299e1;
-        color: white;
         border-radius: 6px;
         text-decoration: none;
         font-size: 0.75rem;
         font-weight: 600;
         transition: 0.2s;
+        border: none;
+        cursor: pointer;
     }
-    .btn-download:hover {
-        background-color: #3182ce;
+    .btn-download { 
+        background-color: #4299e1; 
+        color: white; 
+    }
+    .btn-download:hover { 
+        background-color: #3182ce; 
+    }
+    .btn-cancel { 
+        background-color: #fff5f5; 
+        color: #c53030; 
+        border: 1px solid #feb2b2; 
+        margin-left: 8px;
+    }
+    .btn-cancel:hover { 
+        background-color: #feb2b2; 
     }
 </style>
 {% endblock %}
@@ -64,29 +79,39 @@
                             <tr class="res-row" style="border-bottom: 1px solid #edf2f7;">
                                 <td style="padding: 1.25rem 1.5rem;">
                                     <div style="font-weight: 600; color: #2d3748;">{{ res.equip_name }}</div>
-                                    <div style="font-size: 0.75rem; color: #a0aec0;">{{ res.category }}</div>
+                                    <div style="font-size: 0.75rem; color: #a0aec0;">{{ res.category if res.category else 'General' }}</div>
                                 </td>
                                 <td style="padding: 1.25rem 1.5rem; color: #718096; font-size: 0.9rem;">
                                     {{ res.borrow_date }}
                                 </td>
                                 <td style="padding: 1.25rem 1.5rem;">
                                     {% if res.status == 'pending' %}
-                                        <span class="status-badge" style="background: #fffaf0; color: #9c4221; border: 1px solid #fbd38d;">Pending</span>
+                                        <span class="status-badge" style="background: #fffaf0; color: #9c4221; border-color: #fbd38d;">Pending</span>
                                     {% elif res.status == 'approved' %}
-                                        <span class="status-badge" style="background: #f0fff4; color: #22543d; border: 1px solid #9ae6b4;">Approved</span>
+                                        <span class="status-badge" style="background: #f0fff4; color: #22543d; border-color: #9ae6b4;">Approved</span>
                                     {% elif res.status == 'rejected' %}
-                                        <span class="status-badge" style="background: #fff5f5; color: #822727; border: 1px solid #feb2b2;">Rejected</span>
+                                        <span class="status-badge" style="background: #fff5f5; color: #822727; border-color: #feb2b2;">Rejected</span>
+                                    {% elif res.status == 'cancelled' %}
+                                        <span class="status-badge" style="background: #edf2f7; color: #4a5568; border-color: #cbd5e0;">Cancelled</span>
                                     {% else %}
-                                        <span class="status-badge" style="background: #ebf8ff; color: #2c5282; border: 1px solid #bee3f8;">{{ res.status|capitalize }}</span>
+                                        <span class="status-badge" style="background: #ebf8ff; color: #2c5282; border-color: #bee3f8;">{{ res.status|capitalize }}</span>
                                     {% endif %}
                                 </td>
-                                <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                                <td style="padding: 1.25rem 1.5rem; text-align: right; white-space: nowrap;">
                                     {% if res.status == 'approved' %}
-                                        <a href="{{ url_for('download_slip', res_id=res.res_id) }}" class="btn-download">
-                                            Download Slip
+                                        <a href="{{ url_for('download_slip', res_id=res.res_id) }}" class="btn-action btn-download">Download Slip</a>
+                                    {% endif %}
+
+                                    {% if res.status == 'pending' %}
+                                        <a href="{{ url_for('cancel_reservation', res_id=res.res_id) }}" 
+                                           class="btn-action btn-cancel" 
+                                           onclick="return confirm('Are you sure you want to cancel this reservation?')">
+                                            Cancel
                                         </a>
-                                    {% else %}
-                                        <span style="color: #cbd5e0; font-size: 0.75rem;">No actions available</span>
+                                    {% endif %}
+                                    
+                                    {% if res.status not in ['approved', 'pending'] %}
+                                        <span style="color: #cbd5e0; font-size: 0.75rem; font-style: italic;">No actions available</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -95,7 +120,7 @@
                             <tr>
                                 <td colspan="4" style="padding: 5rem 1.5rem; text-align: center;">
                                     <div style="color: #a0aec0; font-size: 1.1rem;">
-                                        <p>You have no active reservations.</p>
+                                        <p>You have no active reservations found.</p>
                                         <a href="{{ url_for('user_dashboard') }}" style="color: #4299e1; text-decoration: none; font-weight: 600;">&larr; Browse Equipment</a>
                                     </div>
                                 </td>

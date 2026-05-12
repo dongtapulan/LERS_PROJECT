@@ -80,7 +80,9 @@ def admin_dashboard():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
+    # Keep the dashboard clean by only showing the actual 'To-Do' items (Pending)
     pending_list = ReservationService.get_all_pending()
+    
     stats = query_db("""
         SELECT 
             (SELECT COUNT(*) FROM equipment) as total_equip,
@@ -135,8 +137,12 @@ def toggle_maintenance(equip_id):
 def admin_pending_reservations():
     if session.get('role') != 'admin': 
         return redirect(url_for('index'))
-    pending_list = ReservationService.get_all_pending()
-    return render_template('admin/pending_reservations.html', reservations=pending_list)
+    
+    # CHANGE: Use get_all_for_admin() instead of get_all_pending()
+    # This ensures 'cancelled' and 'rejected' items also appear in the list
+    all_activity = ReservationService.get_all_for_admin()
+    
+    return render_template('admin/pending_reservations.html', reservations=all_activity)
 
 @app.route('/admin/reservation/<int:res_id>/<action>')
 def update_reservation(res_id, action):
@@ -288,6 +294,7 @@ def approve_reservation(res_id):
 
     flash(f"Approved by {approver_name}. Inventory updated.")
     return redirect(url_for('admin_dashboard'))
+
 @app.route('/admin/edit-equipment/<int:equip_id>', methods=['POST'])
 def edit_equipment(equip_id):
     if session.get('role') != 'admin':
@@ -307,6 +314,23 @@ def edit_equipment(equip_id):
 
     flash("Inventory updated successfully.")
     return redirect(url_for('manage_equipment'))
+
+@app.route('/user/cancel-reservation/<int:res_id>')
+def cancel_reservation(res_id):
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    # Verify ownership and status
+    res = query_db("SELECT status, user_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
+    
+    if res and res['user_id'] == session['user_id'] and res['status'] == 'pending':
+        # CHANGE: Update status instead of DELETE
+        query_db("UPDATE reservations SET status = 'cancelled' WHERE res_id = %s", (res_id,))
+        flash("Reservation cancelled successfully.")
+    else:
+        flash("Unable to cancel this reservation.")
+        
+    return redirect(url_for('my_reservations'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
