@@ -47,6 +47,16 @@
     .btn-cancel:hover { 
         background-color: #feb2b2; 
     }
+    .btn-dismiss {
+        color: #a0aec0;
+        text-decoration: none;
+        margin-left: 12px;
+        font-size: 0.85rem;
+        transition: color 0.2s;
+    }
+    .btn-dismiss:hover {
+        color: #4a5568;
+    }
 </style>
 {% endblock %}
 
@@ -110,7 +120,16 @@
                                         </a>
                                     {% endif %}
                                     
-                                    {% if res.status not in ['approved', 'pending'] %}
+                                    {# Dismissal Logic for Finished Reservations #}
+                                    {% if res.status in ['approved', 'rejected', 'cancelled'] %}
+                                        <a href="{{ url_for('hide_reservation', res_id=res.res_id) }}" 
+                                           class="btn-dismiss" 
+                                           title="Remove from active view">
+                                           ✕ Dismiss
+                                        </a>
+                                    {% endif %}
+
+                                    {% if res.status not in ['approved', 'pending', 'rejected', 'cancelled'] %}
                                         <span style="color: #cbd5e0; font-size: 0.75rem; font-style: italic;">No actions available</span>
                                     {% endif %}
                                 </td>

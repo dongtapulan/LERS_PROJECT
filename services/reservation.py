@@ -19,10 +19,12 @@ class ReservationService:
             return False, "Return time cannot be earlier than the borrow time."
 
         # 3. Check User's Active Reservation Limit (Max 2)
-        # Note: 'cancelled' and 'rejected' do NOT count toward this limit
+        # THE FIX: Added 'AND is_hidden_by_user = FALSE' so dismissed items don't block new ones
         active_count = query_db("""
             SELECT COUNT(*) as count FROM reservations 
-            WHERE user_id = %s AND status IN ('pending', 'approved')
+            WHERE user_id = %s 
+            AND status IN ('pending', 'approved')
+            AND is_hidden_by_user = FALSE
         """, (user_id,), one=True)
         
         if active_count and active_count['count'] >= 2:
@@ -46,6 +48,7 @@ class ReservationService:
             return False, "Item is currently out of stock/all units are borrowed."
 
         # 5. Insert Reservation as Pending
+        # Note: New reservations are always visible (is_hidden_by_user = FALSE by default)
         query_db("""
             INSERT INTO reservations (user_id, equip_id, borrow_date, return_date, purpose, status)
             VALUES (%s, %s, %s, %s, %s, 'pending')
@@ -55,7 +58,7 @@ class ReservationService:
 
     @staticmethod
     def get_user_reservations(user_id):
-        """Fetches active and recently updated reservations for the student dashboard"""
+        """Fetches active and recently updated reservations that HAVE NOT been dismissed by the student"""
         return query_db("""
             SELECT 
                 r.res_id, r.borrow_date, r.return_date, r.purpose, r.status, r.created_at,
@@ -63,7 +66,7 @@ class ReservationService:
                 COALESCE(e.category, 'General') AS category
             FROM reservations r 
             LEFT JOIN equipment e ON r.equip_id = e.equip_id 
-            WHERE r.user_id = %s 
+            WHERE r.user_id = %s AND r.is_hidden_by_user = FALSE
             ORDER BY r.created_at DESC
         """, (user_id,))
 
@@ -85,7 +88,7 @@ class ReservationService:
 
     @staticmethod
     def get_all_pending():
-        """Used for the Admin's 'To-Do' list"""
+        """Used for the Admin's 'To-Do' list - Filters out items the admin has hidden"""
         return query_db("""
             SELECT 
                 r.res_id, r.user_id, r.borrow_date, r.return_date, r.purpose, r.created_at,
@@ -96,7 +99,7 @@ class ReservationService:
             FROM reservations r
             JOIN users u ON r.user_id = u.user_id
             JOIN equipment e ON r.equip_id = e.equip_id
-            WHERE r.status = 'pending'
+            WHERE r.status = 'pending' AND r.is_hidden_by_admin = FALSE
             ORDER BY r.created_at ASC
         """)
 

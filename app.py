@@ -332,5 +332,28 @@ def cancel_reservation(res_id):
         
     return redirect(url_for('my_reservations'))
 
+@app.route('/hide-reservation/<int:res_id>')
+def hide_reservation(res_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # 1. Update the database visibility flag
+        if session.get('is_admin'):
+            query_db("UPDATE reservations SET is_hidden_by_admin = TRUE WHERE res_id = %s", (res_id,))
+            flash("Reservation dismissed from admin view.", "success")
+            return redirect(url_for('admin_reservations')) # Redirect to admin list
+        else:
+            # We check user_id here for security so students can't hide other students' data
+            query_db("UPDATE reservations SET is_hidden_by_user = TRUE WHERE res_id = %s AND user_id = %s", 
+                     (res_id, session['user_id']))
+            flash("Reservation cleared from your list.", "success")
+            return redirect(url_for('my_reservations')) # Redirect to student list
+            
+    except Exception as e:
+        print(f"Error hiding reservation: {e}")
+        flash("Could not dismiss reservation. Please try again.", "error")
+        return redirect(request.referrer or url_for('user_dashboard'))
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
