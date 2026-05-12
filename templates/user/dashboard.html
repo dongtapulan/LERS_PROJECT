@@ -39,7 +39,7 @@
                             {% endif %}
                             
                             {% if item.status == 'out_of_order' %}
-                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #c53030; transform: rotate(-15deg); border: 2px solid #c53030;">OUT OF ORDER</div>
+                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #c53030; transform: rotate(-15deg); border: 2px solid #c53030; z-index: 2;">OUT OF ORDER</div>
                             {% endif %}
                         </div>
                         <div class="item-details" style="padding: 15px;">
@@ -50,9 +50,11 @@
                                 {% if item.status == 'out_of_order' %}
                                     <span class="badge badge-out-of-order" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Broken</span>
                                     <button class="btn-reserve btn-disabled" style="padding: 6px 12px; border-radius: 5px; font-size: 0.9rem; border:none;">Disabled</button>
-                                {% elif item.available_quantity <= 0 %}
-                                    <span class="badge badge-out-of-stock" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">All Borrowed</span>
+                                
+                                {% elif item.available_quantity <= 0 or item.status == 'out_of_stock' %}
+                                    <span class="badge badge-out-of-stock" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Fully Reserved</span>
                                     <button class="btn-reserve btn-disabled" style="padding: 6px 12px; border-radius: 5px; font-size: 0.9rem; border:none;">Reserve</button>
+                                
                                 {% else %}
                                     <span class="badge" style="background: #c6f6d5; color: #22543d; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">{{ item.available_quantity }} Available</span>
                                     <a href="{{ url_for('reserve', item_id=item.equip_id) }}" class="btn-reserve" style="background: var(--lab-blue); color: white; text-decoration: none; padding: 6px 12px; border-radius: 5px; font-size: 0.9rem;">Reserve</a>

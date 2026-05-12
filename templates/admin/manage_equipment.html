@@ -46,8 +46,8 @@
     }
     .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
     .status-available { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
-    .status-borrowed { background: #bee3f8; color: #2a4365; border: 1px solid #90cdf4; }
-    .status-maintenance { background: #fed7d7; color: #822727; border: 1px solid #feb2b2; } /* Out of Order Red */
+    .status-reserved { background: #bee3f8; color: #2a4365; border: 1px solid #90cdf4; }
+    .status-maintenance { background: #fed7d7; color: #822727; border: 1px solid #feb2b2; } 
     
     .action-links { display: flex; gap: 12px; justify-content: flex-end; }
     .btn-action { 
@@ -94,8 +94,8 @@
                         </select>
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label>Total Quantity</label>
-                        <input type="number" name="total_quantity" value="1" min="1" required>
+                        <label>Total Quantity (Max 50)</label>
+                        <input type="number" name="total_quantity" value="1" min="1" max="50" required>
                     </div>
                 </div>
 
@@ -107,8 +107,8 @@
                 <div class="form-group">
                     <label>Initial Status</label>
                     <select name="status">
-                        <option value="available">Available</option>
-                        <option value="out_of_order">Out of Order</option>
+                        <option value="available">Available (Standard)</option>
+                        <option value="out_of_order">Under Maintenance (Locked)</option>
                     </select>
                 </div>
 
@@ -122,15 +122,15 @@
         </section>
 
         <section class="inventory-section">
-            <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: #2d3748;">Current Inventory</h3>
+            <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: #2d3748;">Current Inventory Status</h3>
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">
                         <th style="padding: 12px;">Preview</th>
                         <th style="padding: 12px;">Item Details</th>
-                        <th style="padding: 12px;">Stock (Avail/Total)</th>
-                        <th style="padding: 12px;">Status</th>
-                        <th style="padding: 12px; text-align: right;">Management</th>
+                        <th style="padding: 12px;">Resource Pool (Avail/Total)</th>
+                        <th style="padding: 12px;">Current State</th>
+                        <th style="padding: 12px; text-align: right;">System Controls</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -144,15 +144,15 @@
                             </td>
                             <td style="padding: 15px 12px;">
                                 <div style="font-weight: 700; color: #2d3748;">{{ item.name }}</div>
-                                <div style="font-size: 0.75rem; color: #a0aec0;">#EQ-{{ item.equip_id }} | {{ item.category }}</div>
+                                <div style="font-size: 0.75rem; color: #a0aec0;">#ID-{{ item.equip_id }} | {{ item.category }}</div>
                             </td>
-                            <td style="padding: 15px 12px; font-weight: 600;">
+                            <td style="padding: 15px 12px; font-weight: 600; color: {% if item.available_quantity == 0 %}#e53e3e{% else %}#2d3748{% endif %};">
                                 {{ item.available_quantity }} / {{ item.total_quantity }}
                             </td>
                             <td style="padding: 15px 12px;">
                                 <span class="status-badge 
                                     {% if item.status == 'available' %}status-available
-                                    {% elif item.status == 'borrowed' %}status-borrowed
+                                    {% elif item.status == 'fully_reserved' %}status-reserved
                                     {% else %}status-maintenance{% endif %}">
                                     {{ item.status | replace('_', ' ') }}
                                 </span>
@@ -161,18 +161,18 @@
                                 <div class="action-links">
                                     <form action="{{ url_for('toggle_maintenance', equip_id=item.equip_id) }}" method="POST" style="display:inline;">
                                         <button type="submit" class="btn-action" style="background:none; border:none; cursor:pointer;">
-                                            {{ 'Restore' if item.status == 'out_of_order' else 'Mark Broken' }}
+                                            {{ 'Put Online' if item.status == 'out_of_order' else 'Lock for Maintenance' }}
                                         </button>
                                     </form>
                                     <a href="{{ url_for('delete_equipment', equip_id=item.equip_id) }}" 
                                        class="btn-action btn-delete" 
-                                       onclick="return confirm('Delete this item?')">Delete</a>
+                                       onclick="return confirm('Permanently remove this resource from system?')">Deallocate</a>
                                 </div>
                             </td>
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="5" style="padding: 50px; text-align: center; color: #a0aec0;">Inventory Empty.</td></tr>
+                        <tr><td colspan="5" style="padding: 50px; text-align: center; color: #a0aec0;">System Inventory is Empty.</td></tr>
                     {% endif %}
                 </tbody>
             </table>

@@ -12,6 +12,7 @@
     textarea.form-control { min-height: 100px; resize: vertical; }
     .btn-confirm { background: var(--lab-blue); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 1rem; font-weight: 600; }
     .btn-confirm:hover { background: #2b4d8c; }
+    .qty-hint { font-size: 0.8rem; color: #718096; margin-top: 5px; display: block; }
 </style>
 {% endblock %}
 
@@ -28,6 +29,7 @@
         <div class="reserve-container">
             {% if item %}
             <form action="{{ url_for('reserve', item_id=item.equip_id) }}" method="POST">
+                
                 <div class="form-group">
                     <label>Start Date & Time</label>
                     <input type="datetime-local" name="start_time" required class="form-control">
@@ -37,6 +39,16 @@
                     <label>End Date & Time</label>
                     <input type="datetime-local" name="end_time" required class="form-control">
                 </div>
+
+                {% if item.available_quantity > 1 %}
+                <div class="form-group">
+                    <label>Quantity to Borrow</label>
+                    <input type="number" name="quantity" value="1" min="1" max="{{ item.available_quantity }}" required class="form-control">
+                    <span class="qty-hint">There are currently <strong>{{ item.available_quantity }}</strong> units available for selection.</span>
+                </div>
+                {% else %}
+                <input type="hidden" name="quantity" value="1">
+                {% endif %}
                 
                 <div class="form-group">
                     <label>Purpose of Use</label>

@@ -97,6 +97,7 @@ def manage_equipment():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
+    # System Monitor: Fetching the current state of all hardware resources
     all_equipment = query_db("SELECT * FROM equipment ORDER BY equip_id DESC")
     return render_template('admin/manage_equipment.html', equipment=all_equipment)
 
@@ -105,31 +106,51 @@ def add_equipment():
     if session.get('role') != 'admin': 
         return redirect(url_for('index'))
 
+    # Resource Allocation: Define total capacity for this equipment type
+    # We grab total_quantity from the form. If not provided, default to 1.
+    try:
+        total_qty = int(request.form.get('total_quantity', 1))
+    except (ValueError, TypeError):
+        total_qty = 1
+
+    # OS-Aware Constraint: Bounded Buffer (Preventing system overflow)
+    if total_qty > 50:
+        flash("Error: Quantity exceeds laboratory capacity limit (Max 50).")
+        return redirect(url_for('manage_equipment'))
+
     file = request.files.get('image')
     filename = secure_filename(file.filename) if file and allowed_file(file.filename) else None
     if filename: 
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
+    # Fix: Set available_quantity = total_quantity so it shows as 6/6, not 1/1
     query_db("""
-        INSERT INTO equipment (name, description, category, image_url, status)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO equipment (name, description, category, image_url, total_quantity, available_quantity, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (request.form.get('name'), request.form.get('description'), 
-          request.form.get('category'), filename, 'available'))
+          request.form.get('category'), filename, total_qty, total_qty, 'available'))
 
-    flash("Equipment added to inventory.")
+    flash(f"Equipment added to inventory with {total_qty} units available.")
     return redirect(url_for('manage_equipment'))
 
-@app.route('/admin/toggle-maintenance/<int:equip_id>', methods=['GET', 'POST']) # Add methods here
+@app.route('/admin/toggle-maintenance/<int:equip_id>', methods=['GET', 'POST'])
 def toggle_maintenance(equip_id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
 
-    item = query_db("SELECT status FROM equipment WHERE equip_id = %s", (equip_id,), one=True)
+    item = query_db("SELECT status, available_quantity FROM equipment WHERE equip_id = %s", (equip_id,), one=True)
     if item:
-        # Toggle between available and out_of_order
-        new_status = 'available' if item['status'] == 'out_of_order' else 'out_of_order'
+        # State Machine Logic:
+        # If we restore an item from maintenance, we must check if it was previously 'fully_reserved'
+        if item['status'] == 'out_of_order':
+            # If units are > 0, it's available. If 0, it stays fully_reserved.
+            new_status = 'available' if item['available_quantity'] > 0 else 'fully_reserved'
+        else:
+            # Manual override to lock the resource regardless of quantity
+            new_status = 'out_of_order'
+            
         query_db("UPDATE equipment SET status = %s WHERE equip_id = %s", (new_status, equip_id))
-        flash(f"Equipment status updated to {new_status.replace('_', ' ')}.")
+        flash(f"System State Update: Equipment is now {new_status.replace('_', ' ')}.")
     
     return redirect(url_for('manage_equipment'))
 
@@ -218,12 +239,16 @@ def reserve(item_id):
         return redirect(url_for('index'))
     
     if request.method == 'POST':
+        # Extract the requested quantity from the form
+        requested_qty = int(request.form.get('quantity', 1))
+
         success, message = ReservationService.create_reservation(
             user_id=session['user_id'],
             equip_id=item_id,
             start_time=request.form.get('start_time'),
             end_time=request.form.get('end_time'),
-            purpose=request.form.get('purpose')
+            purpose=request.form.get('purpose'),
+            requested_qty=requested_qty
         )
         flash(message)
         return redirect(url_for('user_dashboard'))
@@ -320,16 +345,36 @@ def cancel_reservation(res_id):
     if 'user_id' not in session:
         return redirect(url_for('index'))
     
-    # Verify ownership and status
-    res = query_db("SELECT status, user_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
+    # 1. Fetch reservation AND equipment ID in one go
+    res = query_db("""
+        SELECT status, user_id, equip_id 
+        FROM reservations 
+        WHERE res_id = %s
+    """, (res_id,), one=True)
     
+    # 2. Security & Status Check
     if res and res['user_id'] == session['user_id'] and res['status'] == 'pending':
-        # CHANGE: Update status instead of DELETE
-        query_db("UPDATE reservations SET status = 'cancelled' WHERE res_id = %s", (res_id,))
-        flash("Reservation cancelled successfully.")
+        try:
+            # A. Update the Reservation (The Audit Trail)
+            query_db("UPDATE reservations SET status = 'cancelled' WHERE res_id = %s", (res_id,))
+            
+            # B. RESTOCK: Return the item to the inventory
+            # We also force status back to 'available' in case it was 'out_of_stock'
+            query_db("""
+                UPDATE equipment 
+                SET available_quantity = available_quantity + 1,
+                    status = 'available'
+                WHERE equip_id = %s
+            """, (res['equip_id'],))
+
+            flash("Reservation cancelled successfully. Equipment has been restocked.")
+        except Exception as e:
+            print(f"Cancellation DB Error: {e}")
+            flash("A system error occurred during cancellation.")
     else:
-        flash("Unable to cancel this reservation.")
+        flash("Unable to cancel this reservation. It may have already been processed.")
         
+    return redirect(url_for('my_reservations'))
     return redirect(url_for('my_reservations'))
 
 @app.route('/hide-reservation/<int:res_id>')

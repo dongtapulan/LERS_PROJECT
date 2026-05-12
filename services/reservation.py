@@ -3,59 +3,66 @@ from database.db_config import query_db
 
 class ReservationService:
     @staticmethod
-    def create_reservation(user_id, equip_id, start_time, end_time, purpose):
+    def create_reservation(user_id, equip_id, start_time, end_time, purpose, requested_qty=1):
         # 1. Parse dates and times
         try:
             borrow_dt = datetime.strptime(start_time, '%Y-%m-%dT%H:%M')
             return_dt = datetime.strptime(end_time, '%Y-%m-%dT%H:%M')
-        except ValueError:
+        except (ValueError, TypeError):
             return False, "Invalid date or time format."
 
-        # 2. Precise Duration Check (Max 72 Hours)
+        # 2. Duration Check
         duration = return_dt - borrow_dt
         if duration.total_seconds() > (3 * 24 * 60 * 60):
-            return False, "Borrowing limit exceeded. Maximum allowed is 3 days (72 hours)."
+            return False, "Borrowing limit exceeded. Maximum 3 days."
         if duration.total_seconds() < 0:
-            return False, "Return time cannot be earlier than the borrow time."
+            return False, "Return time cannot be earlier than borrow time."
 
-        # 3. Check User's Active Reservation Limit (Max 2)
-        # THE FIX: Added 'AND is_hidden_by_user = FALSE' so dismissed items don't block new ones
+        # 3. Active Reservation Limit Check
         active_count = query_db("""
             SELECT COUNT(*) as count FROM reservations 
-            WHERE user_id = %s 
-            AND status IN ('pending', 'approved')
+            WHERE user_id = %s AND status IN ('pending', 'approved')
             AND is_hidden_by_user = FALSE
         """, (user_id,), one=True)
         
-        if active_count and active_count['count'] >= 2:
+        if active_count and int(active_count['count']) >= 2:
             return False, "You have reached the limit of 2 active reservations."
 
-        # 4. CRITICAL: Check Equipment Quantity and Status
-        equip = query_db("""
-            SELECT status, available_quantity 
-            FROM equipment WHERE equip_id = %s
-        """, (equip_id,), one=True)
-
+        # 4. Fetch State
+        equip = query_db("SELECT status, available_quantity FROM equipment WHERE equip_id = %s", (equip_id,), one=True)
         if not equip:
             return False, "Equipment not found."
 
-        # Block if Admin marked as Out of Order
-        if equip['status'] == 'out_of_order':
-            return False, "This equipment is currently out of order for maintenance."
+        current_qty = int(equip['available_quantity'])
+        req_qty = int(requested_qty) 
 
-        # Block if no physical units are left
-        if equip['available_quantity'] <= 0:
-            return False, "Item is currently out of stock/all units are borrowed."
-
-        # 5. Insert Reservation as Pending
-        # Note: New reservations are always visible (is_hidden_by_user = FALSE by default)
-        query_db("""
-            INSERT INTO reservations (user_id, equip_id, borrow_date, return_date, purpose, status)
-            VALUES (%s, %s, %s, %s, %s, 'pending')
-        """, (user_id, equip_id, borrow_dt, return_dt, purpose))
+        # 6. Logic Calculation
+        new_quantity = current_qty - req_qty
         
-        return True, "Reservation submitted successfully! Awaiting admin approval."
+        # CHANGED: 'unavailable' -> 'out_of_stock'
+        # This is the most common ENUM value for zero-quantity items.
+        new_status = 'out_of_stock' if new_quantity == 0 else 'available'
 
+        try:
+            # 7. Update Equipment
+            query_db("""
+                UPDATE equipment 
+                SET available_quantity = %s, status = %s 
+                WHERE equip_id = %s
+            """, (new_quantity, new_status, equip_id))
+
+            # 8. Record Reservation
+            query_db("""
+                INSERT INTO reservations (user_id, equip_id, borrow_date, return_date, purpose, status)
+                VALUES (%s, %s, %s, %s, %s, 'pending')
+            """, (user_id, equip_id, borrow_dt, return_dt, purpose))
+            
+            return True, "Reservation submitted successfully!"
+            
+        except Exception as e:
+            print(f"Database Error: {e}")
+            return False, "System error during resource allocation."
+    
     @staticmethod
     def get_user_reservations(user_id):
         """Fetches active and recently updated reservations that HAVE NOT been dismissed by the student"""
@@ -129,3 +136,36 @@ class ReservationService:
             JOIN users u ON r.user_id = u.user_id
             WHERE r.res_id = %s
         """, (res_id,), one=True)
+    
+    @staticmethod
+    def cancel_reservation(reservation_id):
+        # 1. Get the reservation details first
+        res = query_db("SELECT equip_id, status FROM reservations WHERE res_id = %s", (reservation_id,), one=True)
+        if not res:
+            return False, "Reservation not found."
+        
+        # Only allow cancellation of 'pending' or 'approved' reservations
+        if res['status'] not in ['pending', 'approved']:
+            return False, "This reservation cannot be cancelled."
+
+        equip_id = res['equip_id']
+
+        try:
+            # 2. Update the Equipment (Return the stock)
+            # We increment the quantity and set status back to 'available'
+            query_db("""
+                UPDATE equipment 
+                SET available_quantity = available_quantity + 1,
+                    status = 'available'
+                WHERE equip_id = %s
+            """, (equip_id,))
+
+            # 3. Update the Reservation status
+            # We mark it as 'cancelled' instead of deleting it so the Admin can still see the history
+            query_db("UPDATE reservations SET status = 'cancelled' WHERE res_id = %s", (reservation_id,))
+
+            return True, "Reservation cancelled and equipment restocked."
+            
+        except Exception as e:
+            print(f"Cancellation Error: {e}")
+            return False, "System error during cancellation."
