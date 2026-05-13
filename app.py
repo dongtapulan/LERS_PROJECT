@@ -18,6 +18,31 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+
+def process_inventory_restock(res_id, new_status):
+    """
+    Core logic to return items to the shelf and update the slip status.
+    """
+    res = query_db("SELECT equip_id, requested_qty FROM reservations WHERE res_id = %s", (res_id,), one=True)
+    
+    if res:
+        # 1. Update the SLIP status (e.g., to 'cancelled' or 'returned')
+        query_db("UPDATE reservations SET status = %s WHERE res_id = %s", (new_status, res_id))
+        
+        # 2. Update the EQUIPMENT table
+        # We add the quantity and force status to 'available' since we are restocking
+        query_db("""
+            UPDATE equipment 
+            SET available_quantity = available_quantity + %s,
+                status = 'available'
+            WHERE equip_id = %s
+        """, (res['requested_qty'], res['equip_id']))
+        
+        print(f"Inventory Sync: Restored {res['requested_qty']} units to Equip ID {res['equip_id']}")
+        return True
+        
+    return False
+
 # --- AUTH ROUTES ---
 
 @app.route('/')
@@ -74,6 +99,26 @@ def logout():
     return redirect(url_for('index'))
 
 # --- ADMIN ROUTES ---
+@app.route('/admin/confirm-return/<int:res_id>')
+def confirm_return(res_id):
+    # Security check: Ensure only admins/techs can run this
+    if session.get('role') != 'admin':
+        flash("Unauthorized access.")
+        return redirect(url_for('index'))
+    
+    # Admins usually return items that are 'approved' or 'borrowed'
+    res = query_db("SELECT status FROM reservations WHERE res_id = %s", (res_id,), one=True)
+    
+    if res and res['status'] in ['approved', 'borrowed']:
+        if process_inventory_restock(res_id, 'returned'):
+            flash("Item successfully returned to inventory.")
+        else:
+            flash("Error processing return.")
+    else:
+        flash("This reservation cannot be returned (it may already be returned or cancelled).")
+        
+    # Redirect back to wherever your admin manages reservations
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -345,36 +390,17 @@ def cancel_reservation(res_id):
     if 'user_id' not in session:
         return redirect(url_for('index'))
     
-    # 1. Fetch reservation AND equipment ID in one go
-    res = query_db("""
-        SELECT status, user_id, equip_id 
-        FROM reservations 
-        WHERE res_id = %s
-    """, (res_id,), one=True)
+    # Verify ownership and that it is still 'pending'
+    res = query_db("SELECT status, user_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
     
-    # 2. Security & Status Check
     if res and res['user_id'] == session['user_id'] and res['status'] == 'pending':
-        try:
-            # A. Update the Reservation (The Audit Trail)
-            query_db("UPDATE reservations SET status = 'cancelled' WHERE res_id = %s", (res_id,))
-            
-            # B. RESTOCK: Return the item to the inventory
-            # We also force status back to 'available' in case it was 'out_of_stock'
-            query_db("""
-                UPDATE equipment 
-                SET available_quantity = available_quantity + 1,
-                    status = 'available'
-                WHERE equip_id = %s
-            """, (res['equip_id'],))
-
-            flash("Reservation cancelled successfully. Equipment has been restocked.")
-        except Exception as e:
-            print(f"Cancellation DB Error: {e}")
-            flash("A system error occurred during cancellation.")
+        if process_inventory_restock(res_id, 'cancelled'):
+            flash("Reservation cancelled. Inventory restocked.")
+        else:
+            flash("Error updating inventory.")
     else:
-        flash("Unable to cancel this reservation. It may have already been processed.")
+        flash("Unauthorized or invalid request.")
         
-    return redirect(url_for('my_reservations'))
     return redirect(url_for('my_reservations'))
 
 @app.route('/hide-reservation/<int:res_id>')

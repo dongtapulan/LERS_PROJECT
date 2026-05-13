@@ -21,7 +21,7 @@ class ReservationService:
         # 3. Active Reservation Limit Check
         active_count = query_db("""
             SELECT COUNT(*) as count FROM reservations 
-            WHERE user_id = %s AND status IN ('pending', 'approved')
+            WHERE user_id = %s AND status IN ('pending', 'approved', 'borrowed')
             AND is_hidden_by_user = FALSE
         """, (user_id,), one=True)
         
@@ -36,31 +36,38 @@ class ReservationService:
         current_qty = int(equip['available_quantity'])
         req_qty = int(requested_qty) 
 
+        # 5. Inventory Availability Check (CRITICAL SAFETY)
+        if req_qty > current_qty:
+            return False, f"Not enough stock. Only {current_qty} available."
+
         # 6. Logic Calculation
         new_quantity = current_qty - req_qty
         
-        # CHANGED: 'unavailable' -> 'out_of_stock'
-        # This is the most common ENUM value for zero-quantity items.
+        # Match your ENUM: 'out_of_stock' if 0, else 'available'
         new_status = 'out_of_stock' if new_quantity == 0 else 'available'
 
         try:
-            # 7. Update Equipment
+            # 7. Update Equipment Table
             query_db("""
                 UPDATE equipment 
                 SET available_quantity = %s, status = %s 
                 WHERE equip_id = %s
             """, (new_quantity, new_status, equip_id))
 
-            # 8. Record Reservation
+            # 8. Record Reservation (FIXED: Now includes requested_qty)
             query_db("""
-                INSERT INTO reservations (user_id, equip_id, borrow_date, return_date, purpose, status)
-                VALUES (%s, %s, %s, %s, %s, 'pending')
-            """, (user_id, equip_id, borrow_dt, return_dt, purpose))
+                INSERT INTO reservations (
+                    user_id, equip_id, borrow_date, return_date, 
+                    purpose, requested_qty, status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, 'pending')
+            """, (user_id, equip_id, borrow_dt, return_dt, purpose, req_qty))
             
             return True, "Reservation submitted successfully!"
             
         except Exception as e:
-            print(f"Database Error: {e}")
+            # Log the error to terminal for debugging
+            print(f"Database Error during reservation: {e}")
             return False, "System error during resource allocation."
     
     @staticmethod
