@@ -12,7 +12,8 @@
     
     <main class="main-content">
         <header class="content-header">
-            <h1>Welcome back, {{ name }}</h1>
+            {# Falls back to 'Admin' if session name is missing #}
+            <h1>Welcome back, {{ name if name else 'Admin' }}</h1>
             <p>Laboratory Technician / Staff Overview</p>
         </header>
 
@@ -31,10 +32,59 @@
             </div>
         </div>
 
+        <section class="management-section">
+            <div class="section-header">
+                <h2>Active Reservations & Returns</h2>
+            </div>
+            <div class="table-container">
+                {% if active_reservations %}
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Equipment</th>
+                            <th>Qty</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for res in active_reservations %}
+                        <tr>
+                            <td class="user-cell">
+                                <strong>{{ res.student_name }}</strong>
+                            </td>
+                            <td>{{ res.equipment_name }}</td>
+                            <td>{{ res.requested_qty }}</td>
+                            <td>
+                                {# Dynamic class for status coloring (e.g., status-approved) #}
+                                <span class="status-badge status-{{ res.status }}">
+                                    {{ res.status | capitalize }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('confirm_return', res_id=res.res_id) }}" 
+                                   class="btn-return"
+                                   onclick="return confirm('Confirm physical return of this equipment? Stock will be updated.')">
+                                    <i class="fas fa-undo"></i> Confirm Return
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <p>No active loans found in the system.</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
         <section class="recent-activity">
             <h2>Recent System Logs</h2>
             <div class="table-container">
-                <p>No recent activity logs found.</p>
+                <p class="text-muted">No recent activity logs found.</p>
             </div>
         </section>
     </main>

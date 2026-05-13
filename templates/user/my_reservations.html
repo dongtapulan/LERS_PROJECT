@@ -103,15 +103,20 @@
                                         <span class="status-badge" style="background: #fff5f5; color: #822727; border-color: #feb2b2;">Rejected</span>
                                     {% elif res.status == 'cancelled' %}
                                         <span class="status-badge" style="background: #edf2f7; color: #4a5568; border-color: #cbd5e0;">Cancelled</span>
+                                    {# Added Returned status per your screenshot logic #}
+                                    {% elif res.status == 'returned' %}
+                                        <span class="status-badge" style="background: #e6fffa; color: #234e52; border-color: #81e6d9;">Returned</span>
                                     {% else %}
                                         <span class="status-badge" style="background: #ebf8ff; color: #2c5282; border-color: #bee3f8;">{{ res.status|capitalize }}</span>
                                     {% endif %}
                                 </td>
                                 <td style="padding: 1.25rem 1.5rem; text-align: right; white-space: nowrap;">
+                                    {# Download Slip for Approved items #}
                                     {% if res.status == 'approved' %}
                                         <a href="{{ url_for('download_slip', res_id=res.res_id) }}" class="btn-action btn-download">Download Slip</a>
                                     {% endif %}
 
+                                    {# Cancel for Pending items #}
                                     {% if res.status == 'pending' %}
                                         <a href="{{ url_for('cancel_reservation', res_id=res.res_id) }}" 
                                            class="btn-action btn-cancel" 
@@ -120,16 +125,18 @@
                                         </a>
                                     {% endif %}
                                     
-                                    {# Dismissal Logic for Finished Reservations #}
-                                    {% if res.status in ['approved', 'rejected', 'cancelled'] %}
+                                    {# Dismissal Logic for Finished Reservations - calling hide_reservation #}
+                                    {% if res.status in ['returned', 'rejected', 'cancelled'] %}
                                         <a href="{{ url_for('hide_reservation', res_id=res.res_id) }}" 
                                            class="btn-dismiss" 
-                                           title="Remove from active view">
-                                           ✕ Dismiss
+                                           title="Remove from active view"
+                                           onclick="return confirm('Dismiss this record from your view?')">
+                                            ✕ Dismiss
                                         </a>
                                     {% endif %}
 
-                                    {% if res.status not in ['approved', 'pending', 'rejected', 'cancelled'] %}
+                                    {# Fallback if no specific status matches for action #}
+                                    {% if res.status == 'approved' and not res.status %}
                                         <span style="color: #cbd5e0; font-size: 0.75rem; font-style: italic;">No actions available</span>
                                     {% endif %}
                                 </td>

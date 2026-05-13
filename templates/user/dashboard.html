@@ -1,13 +1,70 @@
 {% extends "base.html" %}
 
-{% block title %}User Dashboard | LERS{% endblock %}
+{% block title %}Browse Equipment | LERS{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <style>
-    .badge-out-of-order { background: #fed7d7; color: #822727; }
-    .badge-out-of-stock { background: #feebc8; color: #744210; }
-    .btn-disabled { background: #e2e8f0 !important; color: #a0aec0 !important; cursor: not-allowed; pointer-events: none; }
+    .equipment-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .equipment-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    /* Styles for the equipment image container */
+    .equipment-image-container {
+        width: 100%;
+        height: 160px;
+        background: #f8fafc;
+        border-radius: 8px;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: 1px solid #f1f5f9;
+    }
+    .equipment-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 10px;
+    }
+    .badge-available { background: #f0fff4; color: #2f855a; }
+    .badge-unavailable { background: #fff5f5; color: #c53030; }
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .qty-indicator { font-size: 0.85rem; color: #718096; margin-bottom: 1rem; }
+    .btn-reserve {
+        background: #4299e1;
+        color: white;
+        text-align: center;
+        padding: 10px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: 0.2s;
+        display: block;
+    }
+    .btn-reserve:hover { background: #3182ce; }
+    .btn-disabled {
+        background: #edf2f7;
+        color: #a0aec0;
+        cursor: not-allowed;
+    }
 </style>
 {% endblock %}
 
@@ -17,75 +74,59 @@
     
     <main class="main-content">
         <header class="content-header">
-            <h1>Hello, {{ name }}</h1>
-            <p>Select equipment to reserve for your laboratory session.</p>
+            <div class="header-title">
+                <h1>Welcome back, {{ name if name else 'Student' }}</h1>
+                <p>Available Laboratory Equipment for Reservation</p>
+            </div>
         </header>
 
-        <section class="equipment-section">
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>Available Equipment</h2>
-                <input type="text" id="equipmentSearch" placeholder="Search equipment..." style="padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
-            </div>
+        <section class="equipment-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+            {% if equipment %}
+                {% for item in equipment %}
+                <div class="equipment-card">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                            <span class="status-badge {{ 'badge-available' if item.available_quantity > 0 else 'badge-unavailable' }}">
+                                {{ 'Available' if item.available_quantity > 0 else 'Out of Stock' }}
+                            </span>
+                            <small style="color: #a0aec0;">ID: #{{ item.equip_id }}</small>
+                        </div>
 
-            <div class="equipment-grid" id="equipmentGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-                {% if equipment %}
-                    {% for item in equipment %}
-                    <div class="equipment-card" style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #edf2f7; opacity: {{ '0.7' if item.status == 'out_of_order' else '1' }};">
-                        <div class="item-image" style="height: 160px; background: #f7fafc; display: flex; align-items: center; justify-content: center; color: #a0aec0; position: relative;">
+                        <div class="equipment-image-container">
                             {% if item.image_url %}
-                                <img src="{{ url_for('static', filename='uploads/equipment/' + item.image_url) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                <img src="{{ url_for('static', filename='uploads/equipment/' + item.image_url) }}" alt="{{ item.name }}">
                             {% else %}
-                                <span>No Image Available</span>
-                            {% endif %}
-                            
-                            {% if item.status == 'out_of_order' %}
-                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #c53030; transform: rotate(-15deg); border: 2px solid #c53030; z-index: 2;">OUT OF ORDER</div>
+                                <div style="color: #cbd5e0; text-align: center;">
+                                    <small style="display: block;">No Image</small>
+                                </div>
                             {% endif %}
                         </div>
-                        <div class="item-details" style="padding: 15px;">
-                            <h3 class="equipment-name" style="margin: 0 0 5px 0; color: var(--lab-navy);">{{ item.name }}</h3>
-                            <p style="font-size: 0.85rem; color: #718096; margin-bottom: 15px;">{{ item.description or 'No description provided.' }}</p>
-                            
-                            <div class="item-footer" style="display: flex; justify-content: space-between; align-items: center;">
-                                {% if item.status == 'out_of_order' %}
-                                    <span class="badge badge-out-of-order" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Broken</span>
-                                    <button class="btn-reserve btn-disabled" style="padding: 6px 12px; border-radius: 5px; font-size: 0.9rem; border:none;">Disabled</button>
-                                
-                                {% elif item.available_quantity <= 0 or item.status == 'out_of_stock' %}
-                                    <span class="badge badge-out-of-stock" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">Fully Reserved</span>
-                                    <button class="btn-reserve btn-disabled" style="padding: 6px 12px; border-radius: 5px; font-size: 0.9rem; border:none;">Reserve</button>
-                                
-                                {% else %}
-                                    <span class="badge" style="background: #c6f6d5; color: #22543d; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">{{ item.available_quantity }} Available</span>
-                                    <a href="{{ url_for('reserve', item_id=item.equip_id) }}" class="btn-reserve" style="background: var(--lab-blue); color: white; text-decoration: none; padding: 6px 12px; border-radius: 5px; font-size: 0.9rem;">Reserve</a>
-                                {% endif %}
-                            </div>
+
+                        <h3 style="margin-bottom: 0.5rem; color: #2d3748;">{{ item.name }}</h3>
+                        <p style="font-size: 0.85rem; color: #718096; margin-bottom: 1rem;">{{ item.description }}</p>
+                    </div>
+
+                    <div>
+                        <div class="qty-indicator">
+                            <strong>{{ item.available_quantity }}</strong> units remaining
                         </div>
+                        
+                        {% if item.available_quantity > 0 %}
+                            <a href="{{ url_for('reserve', item_id=item.equip_id) }}" class="btn-reserve">
+                                Reserve Now
+                            </a>
+                        {% else %}
+                            <span class="btn-reserve btn-disabled">Unavailable</span>
+                        {% endif %}
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 40px; background: #f7fafc; border-radius: 10px; border: 2px dashed #e2e8f0;">
-                        <p>No equipment currently available for reservation.</p>
-                    </div>
-                {% endif %}
-            </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="grid-column: 1 / -1; text-align: center; padding: 5rem;">
+                    <p style="color: #a0aec0;">No equipment currently listed in the inventory.</p>
+                </div>
+            {% endif %}
         </section>
     </main>
 </div>
-
-<script>
-    document.getElementById('equipmentSearch').addEventListener('keyup', function() {
-        let filter = this.value.toLowerCase();
-        let cards = document.querySelectorAll('.equipment-card');
-        
-        cards.forEach(card => {
-            let name = card.querySelector('.equipment-name').textContent.toLowerCase();
-            if (name.includes(filter)) {
-                card.style.display = "";
-            } else {
-                card.style.display = "none";
-            }
-        });
-    });
-</script>
 {% endblock %}
