@@ -1,6 +1,6 @@
 LERS: Laboratory Equipment Reservation System
 
-LERS is a specialized web application developed for a University Department to manage, track, and reserve laboratory hardware. The system emphasizes physical accountability through automated document generation and strict borrowing policies.
+LERS is a specialized web application developed for a Laboratory to manage, track, and reserve laboratory hardware. The system emphasizes physical accountability through automated document generation and strict borrowing policies.
 
 Project Overview
 LERS transitions from general scheduling to a domain-specific solution for educational technology. It handles the lifecycle of laboratory equipment—from inventory registration to maintenance and student borrowing.
