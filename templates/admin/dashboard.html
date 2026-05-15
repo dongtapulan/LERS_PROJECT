@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}
 
 {% block content %}
@@ -12,61 +13,62 @@
     
     <main class="main-content">
         <header class="content-header">
-            {# Falls back to 'Admin' if session name is missing #}
             <h1>Welcome back, {{ name if name else 'Admin' }}</h1>
             <p>Laboratory Technician / Staff Overview</p>
         </header>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>Total Equipment</h3>
-                <p class="stat-number">{{ stats.total_equip if stats else 0 }}</p>
+                <i class="fas fa-microscope stat-icon"></i>
+                <div>
+                    <h3>Total Equipment</h3>
+                    <p class="stat-number">{{ stats.total_equip if stats else 0 }}</p>
+                </div>
             </div>
-            <div class="stat-card">
-                <h3>Pending Approvals</h3>
-                <p class="stat-number">{{ stats.pending_count if stats else 0 }}</p>
+            <div class="stat-card highlight-pending">
+                <i class="fas fa-clock stat-icon"></i>
+                <div>
+                    <h3>Pending Approvals</h3>
+                    <p class="stat-number">{{ stats.pending_count if stats else 0 }}</p>
+                </div>
             </div>
-            <div class="stat-card">
-                <h3>Active Loans</h3>
-                <p class="stat-number">{{ stats.active_loans if stats else 0 }}</p>
+            <div class="stat-card highlight-active">
+                <i class="fas fa-hand-holding stat-icon"></i>
+                <div>
+                    <h3>Active Loans</h3>
+                    <p class="stat-number">{{ stats.active_loans if stats else 0 }}</p>
+                </div>
             </div>
         </div>
 
         <section class="management-section">
             <div class="section-header">
-                <h2>Active Reservations & Returns</h2>
+                <h2><i class="fas fa-list-ul"></i> Pending Approval Queue</h2>
             </div>
             <div class="table-container">
-                {% if active_reservations %}
+                {% set pending_reservations = active_reservations | selectattr('status', 'equalto', 'pending') | list %}
+                {% if pending_reservations %}
                 <table class="admin-table">
                     <thead>
                         <tr>
                             <th>Student</th>
                             <th>Equipment</th>
-                            <th>Qty</th>
-                            <th>Status</th>
-                            <th>Action</th>
+                            <th>Borrow Date</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for res in active_reservations %}
+                        {% for res in pending_reservations %}
                         <tr>
-                            <td class="user-cell">
-                                <strong>{{ res.student_name }}</strong>
-                            </td>
-                            <td>{{ res.equipment_name }}</td>
-                            <td>{{ res.requested_qty }}</td>
                             <td>
-                                {# Dynamic class for status coloring (e.g., status-approved) #}
-                                <span class="status-badge status-{{ res.status }}">
-                                    {{ res.status | capitalize }}
-                                </span>
+                                <strong>{{ res.full_name }}</strong><br>
+                                <small class="text-muted">{{ res.student_id }}</small>
                             </td>
+                            <td>{{ res.equip_name }}</td>
+                            <td>{{ res.borrow_date.strftime('%b %d, %H:%M') if res.borrow_date }}</td>
                             <td>
-                                <a href="{{ url_for('confirm_return', res_id=res.res_id) }}" 
-                                   class="btn-return"
-                                   onclick="return confirm('Confirm physical return of this equipment? Stock will be updated.')">
-                                    <i class="fas fa-undo"></i> Confirm Return
+                                <a href="{{ url_for('approve_reservation', res_id=res.res_id) }}" class="btn-action btn-approve">
+                                    <i class="fas fa-check"></i> Approve
                                 </a>
                             </td>
                         </tr>
@@ -75,16 +77,55 @@
                 </table>
                 {% else %}
                 <div class="empty-state">
-                    <p>No active loans found in the system.</p>
+                    <p>No pending approvals. You're all caught up!</p>
                 </div>
                 {% endif %}
             </div>
         </section>
 
-        <section class="recent-activity">
-            <h2>Recent System Logs</h2>
+        <section class="management-section active-loans-section">
+            <div class="section-header">
+                <h2><i class="fas fa-exchange-alt"></i> Currently On-Loan</h2>
+            </div>
             <div class="table-container">
-                <p class="text-muted">No recent activity logs found.</p>
+                {% set approved_reservations = active_reservations | selectattr('status', 'equalto', 'approved') | list %}
+                {% if approved_reservations %}
+                <table class="admin-table table-active">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Equipment</th>
+                            <th>Qty</th>
+                            <th>Expected Return</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for res in approved_reservations %}
+                        <tr>
+                            <td class="user-cell">
+                                <strong>{{ res.full_name }}</strong>
+                            </td>
+                            <td>{{ res.equip_name }}</td>
+                            <td><span class="qty-badge">{{ res.requested_qty if res.requested_qty else 1 }}</span></td>
+                            <td class="text-info">{{ res.return_date.strftime('%b %d, %H:%M') if res.return_date }}</td>
+                            <td>
+                                <a href="{{ url_for('confirm_return', res_id=res.res_id) }}" 
+                                   class="btn-action btn-return"
+                                   onclick="return confirm('Confirm physical return of this equipment?')">
+                                    <i class="fas fa-undo"></i> Mark Returned
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-box-open"></i>
+                    <p>No active loans. All equipment is currently in the lab.</p>
+                </div>
+                {% endif %}
             </div>
         </section>
     </main>

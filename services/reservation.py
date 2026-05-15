@@ -176,3 +176,20 @@ class ReservationService:
         except Exception as e:
             print(f"Cancellation Error: {e}")
             return False, "System error during cancellation."
+    
+    @staticmethod
+    def get_active_admin_list():
+        """Fetches both Pending and Approved reservations for the Admin Dashboard"""
+        return query_db("""
+            SELECT 
+                r.res_id, r.user_id, r.borrow_date, r.return_date, r.purpose, r.created_at, r.status,
+                u.first_name || ' ' || u.last_name AS full_name, 
+                u.username AS student_id,
+                e.name AS equip_name,
+                e.category
+            FROM reservations r
+            JOIN users u ON r.user_id = u.user_id
+            JOIN equipment e ON r.equip_id = e.equip_id
+            WHERE r.status IN ('pending', 'approved') AND r.is_hidden_by_admin = FALSE
+            ORDER BY r.status DESC, r.created_at ASC
+        """)

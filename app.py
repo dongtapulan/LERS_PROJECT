@@ -56,7 +56,6 @@ def index():
     # Otherwise, clear session to prevent ghost logins and show login page
     session.clear()
     return render_template('auth/login.html')
-
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form.get('username')
@@ -69,11 +68,15 @@ def login():
         session['role'] = str(user['role'])
         session['full_name'] = f"{user['first_name']} {user['last_name']}"
         
+        # Add a success message here
+        flash(f"Welcome back, {user['first_name']}!", "success")
+        
         if session['role'] == 'admin':
             return redirect(url_for('admin_dashboard'))
         return redirect(url_for('user_dashboard'))
     
-    flash('Invalid credentials, please try again.')
+    # Use 'danger' category for errors
+    flash('Invalid credentials, please try again.', "danger")
     return redirect(url_for('index'))
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -88,9 +91,17 @@ def register():
             request.form.get('role'),
             request.form.get('department')
         )
-        flash(message)
+        
+        # 1. Determine the category based on the success boolean
+        category = "success" if success else "danger"
+        
+        # 2. Flash the message with its specific category
+        flash(message, category)
+        
         if success:
+            # Redirect to login page or index after a successful account creation
             return redirect(url_for('index'))
+            
     return render_template('auth/register.html')
 
 @app.route('/logout')
@@ -125,8 +136,9 @@ def admin_dashboard():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
-    # Keep the dashboard clean by only showing the actual 'To-Do' items (Pending)
-    pending_list = ReservationService.get_all_pending()
+    # NEW: Fetch everything that isn't 'cancelled' or 'returned' 
+    # so the Admin can see both Pending and currently Active loans
+    active_items = ReservationService.get_active_admin_list()
     
     stats = query_db("""
         SELECT 
@@ -135,7 +147,8 @@ def admin_dashboard():
             (SELECT COUNT(*) FROM reservations WHERE status = 'approved') as active_loans
     """, one=True)
     
-    return render_template('admin/dashboard.html', stats=stats, pending_reservations=pending_list)
+    # Update the template variable name to reflect the new combined list
+    return render_template('admin/dashboard.html', stats=stats, active_reservations=active_items)
 
 @app.route('/admin/manage-equipment')
 def manage_equipment():
