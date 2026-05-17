@@ -136,16 +136,15 @@ def admin_dashboard():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
-    # Fetch everything that isn't 'cancelled' or 'returned' 
+    # NEW: Fetch everything that isn't 'cancelled' or 'returned' 
     # so the Admin can see both Pending and currently Active loans
     active_items = ReservationService.get_active_admin_list()
     
-    # FIXED: active_loans now sums up the actual total volume of borrowed units
     stats = query_db("""
         SELECT 
             (SELECT COUNT(*) FROM equipment) as total_equip,
             (SELECT COUNT(*) FROM reservations WHERE status = 'pending') as pending_count,
-            (SELECT COALESCE(SUM(quantity), 0) FROM reservations WHERE status = 'approved') as active_loans
+            (SELECT COUNT(*) FROM reservations WHERE status = 'approved') as active_loans
     """, one=True)
     
     # Update the template variable name to reflect the new combined list
@@ -426,14 +425,10 @@ def cancel_reservation(res_id):
     res = query_db("SELECT status, user_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
     
     if res and res['user_id'] == session['user_id'] and res['status'] == 'pending':
-        # FIX: Call the correct service method directly instead of the old function!
-        # Change 'ReservationService' to whatever your actual class name is.
-        success, message = ReservationService.cancel_reservation(res_id)
-        
-        if success:
+        if process_inventory_restock(res_id, 'cancelled'):
             flash("Reservation cancelled. Inventory restocked.")
         else:
-            flash(f"Error: {message}")
+            flash("Error updating inventory.")
     else:
         flash("Unauthorized or invalid request.")
         

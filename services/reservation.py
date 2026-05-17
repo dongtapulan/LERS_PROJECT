@@ -159,28 +159,17 @@ class ReservationService:
 
         try:
             # 2. Update the Equipment (Return the stock)
-            # Targets 'available_stock' which safely exists on both local and cloud databases.
+            # We increment the quantity and set status back to 'available'
             query_db("""
                 UPDATE equipment 
-                SET available_stock = available_stock + 1,
+                SET available_quantity = available_quantity + 1,
                     status = 'available'
                 WHERE equip_id = %s
             """, (equip_id,))
 
-            # Try to update available_quantity as well JUST in case your local frontend relies on it
-            try:
-                query_db("""
-                    UPDATE equipment 
-                    SET available_quantity = available_quantity + 1 
-                    WHERE equip_id = %s
-                """, (equip_id,))
-            except Exception:
-                # Fails silently on Render because the column doesn't exist there, keeping production stable
-                pass
-
             # 3. Update the Reservation status
-            # FIXED: Changed from 'cancelled' to 'rejected' to perfectly match your database ENUM options!
-            query_db("UPDATE reservations SET status = 'rejected' WHERE res_id = %s", (reservation_id,))
+            # We mark it as 'cancelled' instead of deleting it so the Admin can still see the history
+            query_db("UPDATE reservations SET status = 'cancelled' WHERE res_id = %s", (reservation_id,))
 
             return True, "Reservation cancelled and equipment restocked."
             
