@@ -426,7 +426,8 @@ def cancel_reservation(res_id):
     res = query_db("SELECT status, user_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
     
     if res and res['user_id'] == session['user_id'] and res['status'] == 'pending':
-        if process_inventory_restock(res_id, 'cancelled'):
+        # FIXED: Pass 'rejected' instead of 'cancelled' to match your ENUM options
+        if process_inventory_restock(res_id, 'rejected'):
             flash("Reservation cancelled. Inventory restocked.")
         else:
             flash("Error updating inventory.")
