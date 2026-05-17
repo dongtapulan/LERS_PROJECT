@@ -426,11 +426,14 @@ def cancel_reservation(res_id):
     res = query_db("SELECT status, user_id FROM reservations WHERE res_id = %s", (res_id,), one=True)
     
     if res and res['user_id'] == session['user_id'] and res['status'] == 'pending':
-        # FIXED: Pass 'rejected' instead of 'cancelled' to match your ENUM options
-        if process_inventory_restock(res_id, 'rejected'):
+        # FIX: Call the correct service method directly instead of the old function!
+        # Change 'ReservationService' to whatever your actual class name is.
+        success, message = ReservationService.cancel_reservation(res_id)
+        
+        if success:
             flash("Reservation cancelled. Inventory restocked.")
         else:
-            flash("Error updating inventory.")
+            flash(f"Error: {message}")
     else:
         flash("Unauthorized or invalid request.")
         
