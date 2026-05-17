@@ -107,7 +107,15 @@
                                 <strong>{{ res.full_name }}</strong>
                             </td>
                             <td>{{ res.equip_name }}</td>
-                            <td><span class="qty-badge">{{ res.requested_qty if res.requested_qty else 1 }}</span></td>
+                            <td>
+                                <span class="qty-badge">
+                                    {% if res.quantity is defined %}
+                                        {{ res.quantity }}
+                                    {% else %}
+                                        {{ res.requested_qty if res.requested_qty else 1 }}
+                                    {% endif %}
+                                </span>
+                            </td>
                             <td class="text-info">{{ res.return_date.strftime('%b %d, %H:%M') if res.return_date }}</td>
                             <td>
                                 <a href="{{ url_for('confirm_return', res_id=res.res_id) }}" 

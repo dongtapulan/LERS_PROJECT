@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
     .form-container {
         background: white;
@@ -60,6 +61,40 @@
     .btn-action:hover { color: #4299e1; }
     .btn-delete { color: #e53e3e; }
     .btn-delete:hover { color: #c53030; }
+
+    /* Custom inline pool modifier styles */
+    .qty-inline-form {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .input-qty-modifier {
+        width: 55px !important;
+        padding: 4px 6px !important;
+        text-align: center;
+        font-weight: 700;
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        color: #2d3748;
+    }
+    .input-qty-modifier:focus {
+        border-color: #4299e1;
+        outline: none;
+    }
+    .btn-save-qty {
+        background: #4299e1;
+        color: white;
+        border: none;
+        padding: 5px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+    .btn-save-qty:hover {
+        background: #2b6cb0;
+    }
 </style>
 {% endblock %}
 
@@ -128,7 +163,7 @@
                     <tr style="border-bottom: 2px solid #edf2f7; color: #718096; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">
                         <th style="padding: 12px;">Preview</th>
                         <th style="padding: 12px;">Item Details</th>
-                        <th style="padding: 12px;">Resource Pool (Avail/Total)</th>
+                        <th style="padding: 12px;">Resource Pool (Avail / Total)</th>
                         <th style="padding: 12px;">Current State</th>
                         <th style="padding: 12px; text-align: right;">System Controls</th>
                     </tr>
@@ -146,9 +181,30 @@
                                 <div style="font-weight: 700; color: #2d3748;">{{ item.name }}</div>
                                 <div style="font-size: 0.75rem; color: #a0aec0;">#ID-{{ item.equip_id }} | {{ item.category }}</div>
                             </td>
-                            <td style="padding: 15px 12px; font-weight: 600; color: {% if item.available_quantity == 0 %}#e53e3e{% else %}#2d3748{% endif %};">
-                                {{ item.available_quantity }} / {{ item.total_quantity }}
+                            
+                            <td style="padding: 15px 12px;">
+                                <form action="{{ url_for('edit_equipment', equip_id=item.equip_id) }}" method="POST" class="qty-inline-form">
+                                    <input type="hidden" name="name" value="{{ item.name }}">
+                                    <input type="hidden" name="status" value="{{ item.status }}">
+                                    <input type="hidden" name="total_quantity" value="{{ item.total_quantity }}">
+                                    
+                                    <input type="number" 
+                                           name="available_quantity" 
+                                           value="{{ item.available_quantity }}" 
+                                           min="0" 
+                                           max="{{ item.total_quantity }}" 
+                                           class="input-qty-modifier"
+                                           title="Adjust active physical availability pool"
+                                           required>
+                                           
+                                    <span style="color: #a0aec0; font-weight: 700; font-size: 0.9rem;">/ {{ item.total_quantity }}</span>
+                                           
+                                    <button type="submit" class="btn-save-qty" title="Apply adjustments">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
                             </td>
+                            
                             <td style="padding: 15px 12px;">
                                 <span class="status-badge 
                                     {% if item.status == 'available' %}status-available

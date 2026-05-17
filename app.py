@@ -136,15 +136,16 @@ def admin_dashboard():
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
     
-    # NEW: Fetch everything that isn't 'cancelled' or 'returned' 
+    # Fetch everything that isn't 'cancelled' or 'returned' 
     # so the Admin can see both Pending and currently Active loans
     active_items = ReservationService.get_active_admin_list()
     
+    # FIXED: active_loans now sums up the actual total volume of borrowed units
     stats = query_db("""
         SELECT 
             (SELECT COUNT(*) FROM equipment) as total_equip,
             (SELECT COUNT(*) FROM reservations WHERE status = 'pending') as pending_count,
-            (SELECT COUNT(*) FROM reservations WHERE status = 'approved') as active_loans
+            (SELECT COALESCE(SUM(quantity), 0) FROM reservations WHERE status = 'approved') as active_loans
     """, one=True)
     
     # Update the template variable name to reflect the new combined list
@@ -383,19 +384,37 @@ def edit_equipment(equip_id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
 
+    # Read form inputs from the row
     name = request.form.get('name')
-    total_qty = int(request.form.get('total_quantity'))
     status = request.form.get('status') # 'available', 'out_of_order'
     
-    # Logic: Available quantity cannot exceed total quantity
+    new_avail = int(request.form.get('available_quantity'))
+    total_qty = int(request.form.get('total_quantity'))
+
+    # CRITICAL SECURITY CHECK: Available stock cannot physically exceed total inventory capacity
+    if new_avail > total_qty:
+        flash(f"Error: Available quantity ({new_avail}) cannot exceed total stock ({total_qty})!", "danger")
+        return redirect(url_for('manage_equipment'))
+        
+    if new_avail < 0:
+        flash("Error: Available quantity cannot be negative.", "danger")
+        return redirect(url_for('manage_equipment'))
+
+    # If the admin manually sets available stock to 0, automatically flag status as fully reserved/unavailable
+    # unless it's already explicitly marked as 'out_of_order'
+    if new_avail == 0 and status != 'out_of_order':
+        status = 'fully_reserved'
+    elif new_avail > 0 and status == 'fully_reserved':
+        status = 'available'
+
+    # Update database row
     query_db("""
         UPDATE equipment 
-        SET name = %s, total_quantity = %s, status = %s,
-            available_quantity = CASE WHEN %s < available_quantity THEN %s ELSE available_quantity END
+        SET name = %s, total_quantity = %s, available_quantity = %s, status = %s
         WHERE equip_id = %s
-    """, (name, total_qty, status, total_qty, total_qty, equip_id))
+    """, (name, total_qty, new_avail, status, equip_id))
 
-    flash("Inventory updated successfully.")
+    flash("Inventory pool capacity adjusted successfully.", "success")
     return redirect(url_for('manage_equipment'))
 
 @app.route('/user/cancel-reservation/<int:res_id>')
@@ -438,6 +457,70 @@ def hide_reservation(res_id):
         print(f"Error hiding reservation: {e}")
         flash("Could not dismiss reservation. Please try again.", "error")
         return redirect(request.referrer or url_for('user_dashboard'))
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        
+        # Call the updated hybrid-ready service layer
+        success, data = AuthService.create_password_reset_token(username)
+        
+        if success:
+            # Unpack the dictionary bundle safely
+            token = data["token"]
+            user_info = data["user"]
+            
+            # Dynamically build the external absolute URL pointing to your reset endpoint
+            reset_link = url_for('reset_password', token=token, _external=True)
+            
+            # --- LOCAL SIMULATION LOGGING CHANNEL ---
+            print(f"\n--- SIMULATED SYSTEM EMAIL ---")
+            print(f"User ID / Account: {user_info['username']}")
+            print(f"Reset URL Link: {reset_link}")
+            print(f"------------------------------\n")
+            
+            flash("Password reset link has been generated! Check terminal console logs.", "info")
+            
+            # --- PRODUCTION LIVE DEPLOYMENT CHANNEL ---
+            # Once you configure an SMTP server (like Gmail App Passwords or SendGrid) later,
+            # you can comment out the print statements above and uncomment the lines below:
+            #
+            # send_production_email(recipient=f"{user_info['username']}@student.ctu.edu.ph", link=reset_link)
+            # flash("An authenticated recovery link has been dispatched to your institutional email.", "info")
+            
+        else:
+            # If user search fails, 'data' contains the defensive security string
+            flash(data, "info")
+            
+        return redirect(url_for('index'))
+        
+    return render_template('auth/forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    # Call the service layer to confirm token validity
+    reset_entry = AuthService.verify_reset_token(token)
+    
+    if not reset_entry:
+        flash("Invalid or expired password reset token.", "danger")
+        return redirect(url_for('index'))
+        
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if new_password != confirm_password:
+            flash("Passwords do not match!", "danger")
+            return render_template('auth/reset_password.html', token=token)
+            
+        # Execute password modification and consumption step via service
+        AuthService.reset_user_password(reset_entry['user_id'], new_password)
+        
+        flash("Password updated successfully! You can now log in.", "success")
+        return redirect(url_for('index'))
+        
+    return render_template('auth/reset_password.html', token=token)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
