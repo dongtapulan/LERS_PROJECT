@@ -3,10 +3,13 @@ from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
 
-# Load variables from the .env file into the system environment
+# Load variables from the .env file into the system environment (for local development)
 load_dotenv()
 
-# Database Credentials pulled from the OS environment for security
+# Check for Render's complete cloud connection URL first
+CLOUD_DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Individual Database Credentials fallback for local hosting
 DB_SETTINGS = {
     'dbname': os.getenv('DB_NAME', 'lers_db'),
     'user': os.getenv('DB_USER', 'postgres'),
@@ -17,8 +20,12 @@ DB_SETTINGS = {
 
 def get_connection():
     try:
-        # Pass the dictionary as keyword arguments
-        conn = psycopg2.connect(**DB_SETTINGS)
+        if CLOUD_DATABASE_URL:
+            # If running on Render, connect directly using the single URL string
+            conn = psycopg2.connect(CLOUD_DATABASE_URL)
+        else:
+            # If running locally, unpack individual settings
+            conn = psycopg2.connect(**DB_SETTINGS)
         return conn
     except Exception as e:
         print(f"CRITICAL: Database connection failed. {e}")
