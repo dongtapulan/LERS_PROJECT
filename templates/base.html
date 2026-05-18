@@ -16,7 +16,7 @@
           {% for category, message in messages %}
             {# Maps Flask categories to CSS classes (e.g., alert-success, alert-danger) #}
             <div class="flash-message alert-{{ category if category != 'message' else 'info' }}">
-                <span class="message-text">{{ message }}</span>
+                <span class="message-text">{{ message | safe }}</span>
                 <button type="button" class="flash-close" onclick="this.parentElement.style.display='none';">
                     <i class="fas fa-times"></i>
                 </button>

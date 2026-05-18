@@ -56,6 +56,7 @@ def index():
     # Otherwise, clear session to prevent ghost logins and show login page
     session.clear()
     return render_template('auth/login.html')
+
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form.get('username')
@@ -465,11 +466,10 @@ def forgot_password():
     if request.method == 'POST':
         username = request.form.get('username')
         
-        # Call the updated hybrid-ready service layer
+        # Call the service layer to get the token
         success, data = AuthService.create_password_reset_token(username)
         
         if success:
-            # Unpack the dictionary bundle safely
             token = data["token"]
             user_info = data["user"]
             
@@ -482,20 +482,17 @@ def forgot_password():
             print(f"Reset URL Link: {reset_link}")
             print(f"------------------------------\n")
             
-            flash("Password reset link has been generated! Check terminal console logs.", "info")
+            # Embed a stylized HTML link inside the message payload
+            flash(f"Password reset link generated! <a href='{reset_link}' style='color: #002e52; font-weight: 700; text-decoration: underline; margin-left: 5px;'>Click here to reset password</a>", "info")
             
-            # --- PRODUCTION LIVE DEPLOYMENT CHANNEL ---
-            # Once you configure an SMTP server (like Gmail App Passwords or SendGrid) later,
-            # you can comment out the print statements above and uncomment the lines below:
-            #
-            # send_production_email(recipient=f"{user_info['username']}@student.ctu.edu.ph", link=reset_link)
-            # flash("An authenticated recovery link has been dispatched to your institutional email.", "info")
+            # FIX: Render the login template directly instead of redirecting.
+            # This avoids the 405 error on /login AND avoids session.clear() on index!
+            return render_template('auth/login.html')
             
         else:
-            # If user search fails, 'data' contains the defensive security string
+            # If user search fails, show the defensive security string
             flash(data, "info")
-            
-        return redirect(url_for('index'))
+            return redirect(url_for('forgot_password'))
         
     return render_template('auth/forgot_password.html')
 
