@@ -86,7 +86,7 @@ class ReservationService:
 
     @staticmethod
     def get_all_for_admin():
-        """Returns ALL reservations (including cancelled) so professors have an audit trail"""
+        """Returns ALL reservations so professors have a clean audit trail across operations"""
         return query_db("""
             SELECT 
                 r.res_id, r.user_id, r.borrow_date, r.return_date, r.purpose, r.created_at, r.status,
@@ -97,6 +97,22 @@ class ReservationService:
             FROM reservations r
             JOIN users u ON r.user_id = u.user_id
             JOIN equipment e ON r.equip_id = e.equip_id
+            ORDER BY r.created_at DESC
+        """)
+    @staticmethod
+    def get_pending_for_admin():
+        """Returns ONLY active requests awaiting processing so the dashboard stays clean"""
+        return query_db("""
+            SELECT 
+                r.res_id, r.user_id, r.borrow_date, r.return_date, r.purpose, r.created_at, r.status,
+                u.first_name || ' ' || u.last_name AS full_name, 
+                u.username AS student_id,
+                e.name AS equip_name,
+                e.category
+            FROM reservations r
+            JOIN users u ON r.user_id = u.user_id
+            JOIN equipment e ON r.equip_id = e.equip_id
+            WHERE r.status = 'pending'
             ORDER BY r.created_at DESC
         """)
 

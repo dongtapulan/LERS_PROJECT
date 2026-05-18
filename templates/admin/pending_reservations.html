@@ -24,6 +24,8 @@
     .badge-approved { background: #c6f6d5; color: #22543d; border-color: #9ae6b4; }
     .badge-rejected { background: #fed7d7; color: #822727; border-color: #feb2b2; }
     .badge-cancelled { background: #edf2f7; color: #4a5568; border-color: #cbd5e0; }
+    /* FIXED: Added clean styling rule for your returned database strings */
+    .badge-returned { background: #e2e8f0; color: #4a5568; border-color: #cbd5e0; }
 </style>
 {% endblock %}
 
@@ -72,6 +74,8 @@
                                 <span class="status-badge badge-approved">Approved</span>
                             {% elif res.status == 'rejected' %}
                                 <span class="status-badge badge-rejected">Rejected</span>
+                            {% elif res.status == 'returned' %}
+                                <span class="status-badge badge-returned">Returned</span>
                             {% else %}
                                 <span class="status-badge badge-pending">Pending Approval</span>
                             {% endif %}

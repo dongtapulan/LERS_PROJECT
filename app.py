@@ -217,11 +217,14 @@ def admin_pending_reservations():
     if session.get('role') != 'admin': 
         return redirect(url_for('index'))
     
-    # CHANGE: Use get_all_for_admin() instead of get_all_pending()
-    # This ensures 'cancelled' and 'rejected' items also appear in the list
+    # Keeps your original audit-trail method intact
     all_activity = ReservationService.get_all_for_admin()
     
-    return render_template('admin/pending_reservations.html', reservations=all_activity)
+    # UPDATE: Filter so ONLY 'pending' items show up on this specific management screen.
+    # Once a user cancels or an item is marked 'returned', it immediately drops off this view!
+    pending_activity = [res for res in all_activity if res['status'] == 'pending']
+    
+    return render_template('admin/pending_reservations.html', reservations=pending_activity)
 
 @app.route('/admin/reservation/<int:res_id>/<action>')
 def update_reservation(res_id, action):
